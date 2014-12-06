@@ -106,4 +106,10 @@
          Should be set to dt2w max time / 2 when needed -->
     <java-symbol type="integer" name="config_singleTapDelay" />
 
+    <!-- Status bar network traffic monitor -->
+    <java-symbol type="dimen" name="net_traffic_text_size" id="0x010503bb" />
+    <java-symbol type="string" name="kilobitspersecond_short" />
+    <java-symbol type="string" name="megabitspersecond_short" />
+    <java-symbol type="string" name="kilobytespersecond_short" />
+    <java-symbol type="string" name="megabytespersecond_short" />
 </resources>

@@ -561,5 +561,8 @@ public class SecureSettingsValidators {
         VALIDATORS.put(Secure.DISPLAY_COLOR_TEMPERATURE, new InclusiveIntegerRangeValidator(3000, 9000));
         VALIDATORS.put(Secure.DISPLAY_COLOR_SATURATION, new InclusiveIntegerRangeValidator(0, 200));
         VALIDATORS.put(Secure.HIDE_DEVELOPER_STATUS, ANY_STRING_VALIDATOR);
+        VALIDATORS.put(Secure.NETWORK_TRAFFIC_MODE, new InclusiveIntegerRangeValidator(0, 3));
+        VALIDATORS.put(Secure.NETWORK_TRAFFIC_AUTOHIDE, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(Secure.NETWORK_TRAFFIC_UNITS, new InclusiveIntegerRangeValidator(0, 4));
     }
 }

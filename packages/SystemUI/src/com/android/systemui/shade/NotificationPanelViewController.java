@@ -52,6 +52,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Color;
@@ -62,11 +63,13 @@ import android.graphics.RenderEffect;
 import android.graphics.Shader;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.os.Trace;
 import android.util.IndentingPrintWriter;
 import android.util.Log;
 import android.util.MathUtils;
 import android.view.Display;
+import android.view.GestureDetector;
 import android.view.HapticFeedbackConstants;
 import android.view.InputDevice;
 import android.view.MotionEvent;
@@ -296,6 +299,7 @@ public final class NotificationPanelViewController implements
     private final ConfigurationController mConfigurationController;
     private final Provider<FlingAnimationUtils.Builder> mFlingAnimationUtilsBuilder;
     private final NotificationStackScrollLayoutController mNotificationStackScrollLayoutController;
+    private final PowerManager mPowerManager;
     private final AccessibilityManager mAccessibilityManager;
     private final NotificationWakeUpCoordinator mWakeUpCoordinator;
     private final PulseExpansionHandler mPulseExpansionHandler;
@@ -476,6 +480,7 @@ public final class NotificationPanelViewController implements
     private final NotificationShadeDepthController mDepthController;
     private final NavigationBarController mNavigationBarController;
     private final int mDisplayId;
+    private GestureDetector mDoubleTapGesture;
 
     private final KeyguardIndicationController mKeyguardIndicationController;
     private int mHeadsUpInset;
@@ -594,6 +599,7 @@ public final class NotificationPanelViewController implements
             CommandQueue commandQueue,
             VibratorHelper vibratorHelper,
             LatencyTracker latencyTracker,
+            PowerManager powerManager,
             AccessibilityManager accessibilityManager,
             @DisplayId int displayId,
             KeyguardUpdateMonitor keyguardUpdateMonitor,
@@ -655,7 +661,8 @@ public final class NotificationPanelViewController implements
             BrightnessMirrorShowingRepository brightnessMirrorShowingRepository,
             BlurConfig blurConfig,
             Lazy<ShadeDisplaysRepository> shadeDisplaysRepository,
-            WindowRootViewBlurInteractor windowRootViewBlurInteractor) {
+            WindowRootViewBlurInteractor windowRootViewBlurInteractor,
+            Context context) {
         mBlurConfig = blurConfig;
         mWindowRootViewBlurInteractor = windowRootViewBlurInteractor;
         SceneContainerFlag.assertInLegacyMode();
@@ -751,6 +758,7 @@ public final class NotificationPanelViewController implements
         mShadeHeaderController = shadeHeaderController;
         mAnimateBack = predictiveBackAnimateShade();
         mFalsingCollector = falsingCollector;
+        mPowerManager = powerManager;
         mWakeUpCoordinator = coordinator;
         mMainDispatcher = mainDispatcher;
         mAccessibilityManager = accessibilityManager;
@@ -776,6 +784,16 @@ public final class NotificationPanelViewController implements
         quickSettingsController.setFlingQsWithoutClickListener(this::onFlingQsWithoutClick);
         quickSettingsController.setExpansionHeightSetToMaxListener(this::onExpansionHeightSetToMax);
         shadeExpansionStateManager.addStateListener(this::onPanelStateChanged);
+        mDoubleTapGesture = new GestureDetector(context,
+                new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onDoubleTap(MotionEvent e) {
+                if (mPowerManager != null) {
+                    mPowerManager.goToSleep(e.getEventTime());
+                }
+                return true;
+            }
+        });
         mConversationNotificationManager = conversationNotificationManager;
         mScreenOffAnimationController = screenOffAnimationController;
         mUnlockedScreenOffAnimationController = unlockedScreenOffAnimationController;
@@ -3993,6 +4011,10 @@ public final class NotificationPanelViewController implements
                 mShadeLog.logMotionEvent(event,
                         "onTouch: ignore touch, bouncer scrimmed or showing over dream");
                 return false;
+            }
+
+            if (!mPulsing && !mDozing) {
+                mDoubleTapGesture.onTouchEvent(event);
             }
 
             // Make sure the next touch won't the blocked after the current ends.

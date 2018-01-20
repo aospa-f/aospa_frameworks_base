@@ -311,5 +311,6 @@ public class SystemSettingsValidators {
         VALIDATORS.put(System.NOTIFICATION_VIBRATION_PATTERN, new InclusiveIntegerRangeValidator(0, 4));
         VALIDATORS.put(System.SHOW_BATTERY_ICON, BOOLEAN_VALIDATOR);
         VALIDATORS.put(System.SMART_5G, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(System.ADVANCED_REBOOT, BOOLEAN_VALIDATOR);
     }
 }

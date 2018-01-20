@@ -7146,6 +7146,13 @@ public final class Settings {
          */
         @Readable
         public static final String NOTIFICATION_SCREEN_ON_MUTE = "notification_screen_on_mute";
+
+        /**
+         * Whether to enable advanced reboot
+         * @hide
+         */
+        @Readable
+        public static final String ADVANCED_REBOOT = "advanced_reboot";
          * Keys we no longer back up under the current schema, but want to continue to
          * process when restoring historical backup datasets.
          *

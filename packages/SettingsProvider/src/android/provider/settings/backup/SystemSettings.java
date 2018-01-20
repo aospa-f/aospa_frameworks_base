@@ -133,6 +133,7 @@ public class SystemSettings {
                 Settings.System.PEAK_REFRESH_RATE,
                 Settings.System.MIN_REFRESH_RATE,
                 Settings.System.ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_DISABLE,
+                Settings.System.ADVANCED_REBOOT,
                 Settings.System.RINGTONE_VIBRATION_PATTERN,
                 Settings.System.NOTIFICATION_VIBRATION_PATTERN
         ));

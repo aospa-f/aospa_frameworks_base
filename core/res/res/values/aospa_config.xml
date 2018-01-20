@@ -159,4 +159,11 @@
          Should be set to dt2w max time / 2 when needed -->
     <integer name="config_singleTapDelay">0</integer>
 
+   <!-- Defines the actions shown in advanced reboot submenu -->
+   <string-array name="config_restartActionsList">
+       <item>restart</item>
+       <item>restart_recovery</item>
+       <item>restart_bootloader</item>
+       <item>restart_fastboot</item>
+   </string-array>
 </resources>

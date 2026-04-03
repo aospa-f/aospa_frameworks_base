@@ -83,7 +83,7 @@ public final class GameSpaceController {
 
     private final Runnable mFade = () -> {
         if (mHandle != null) {
-            mHandle.animate().alpha(0.25f).setDuration(300).start();
+            mHandle.animate().alpha(0.15f).setDuration(300).start();
         }
     };
 
@@ -326,7 +326,7 @@ public final class GameSpaceController {
         }
         final GradientDrawable background = new GradientDrawable();
         background.setCornerRadius(dp(8));
-        background.setColor(mLocked ? 0xE6FFFFFF : 0x59FFFFFF);
+        background.setColor(mLocked ? 0xFFFFFFFF : 0xFFBDBDBD);
         mHandle.setBackground(background);
     }
 

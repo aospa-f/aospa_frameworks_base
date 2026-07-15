@@ -821,6 +821,9 @@ public class BtHelper {
         if (mScoHelper != null) {
             mScoHelper.resetBluetoothSco();
         }
+        Log.i(TAG, "resetBluetoothSco: clearing mScoClientDevices, size =" +
+                mScoClientDevices.size());
+        mScoClientDevices.clear();
     }
 
     @GuardedBy("mDeviceBroker.mDeviceStateLock")
@@ -1614,6 +1617,9 @@ public class BtHelper {
                 mResolvedScoAudioDevices.put(btDevice, audioDevice);
             } else {
                 mResolvedScoAudioDevices.remove(btDevice);
+                Log.i(TAG, "handleBtScoActiveDeviceChange: removing " +
+                        getAnonymizedAddress(btDevice) + " from mScoClientDevices");
+                mScoClientDevices.remove(btDevice);
             }
         }
         return result;

@@ -427,6 +427,9 @@ public class BtHelper {
             mDeviceBroker.clearA2dpSuspended(false /* internalOnly */);
             mDeviceBroker.clearLeAudioSuspended(false /* internalOnly */);
             mDeviceBroker.setBluetoothScoOn(false, "resetBluetoothSco");
+            // Clear per-device SCO tracking so a stale STATE_AUDIO_CONNECTED entry cannot make
+            // isAudioPathUp() return true on the next reconnect and suppress SCO routing.
+            mScoClientDevices.clear();
         }
 
         @GuardedBy("mDeviceBroker.mDeviceStateLock")
@@ -949,8 +952,6 @@ public class BtHelper {
      //SCO device tracking for TWSPLUS or GROUP device
     private HashMap<BluetoothDevice, Integer> mScoClientDevices =
                                           new HashMap<BluetoothDevice, Integer>();
-    private static final int GROUP_ID_START = 0;
-    private static final int GROUP_ID_END = 15;
 
     private void updateTwsPlusScoState(BluetoothDevice device, Integer state) {
         if (mScoClientDevices.containsKey(device)) {
@@ -996,12 +997,20 @@ public class BtHelper {
     }
 
     private boolean isGroupDevice(BluetoothDevice device) {
-        int type = 0;
         boolean ret = false;
-        Log.i(TAG, "Bluetooth device type: " + type);
-        if (type >= GROUP_ID_START && type <= GROUP_ID_END)
+        if (device == null) {
+            Log.e(TAG, "isGroupDevice: device is null");
+            return ret;
+        }
+        // A plain single HFP headset is not a coordinated-set/group device and must bypass
+        // the group-SCO dedup gate, otherwise onScoAudioStateChanged() gets suppressed and SCO
+        // audio is not routed on reconnect. Use the LE Audio group id as the group signal:
+        // non-group devices report GROUP_ID_INVALID.
+        int groupId = getLeAudioDeviceGroupId(device, BluetoothProfile.LE_AUDIO);
+        if (groupId != BluetoothLeAudio.GROUP_ID_INVALID) {
             ret = true;
-        Log.i(TAG, "isGroupDevice return " + ret);
+        }
+        Log.i(TAG, "isGroupDevice return " + ret + " groupId: " + groupId);
         return ret;
     }
 

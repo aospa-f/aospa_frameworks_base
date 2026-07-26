@@ -114,9 +114,9 @@ public class MediaFocusControl implements PlayerFocusEnforcer {
         public void onChange(boolean selfChange) {
             if (mContext == null) return;
             final ContentResolver cr = mContext.getContentResolver();
-            mMultiAudioFocusEnabled = mPerAppVolumeEnabled || Settings.System.getIntForUser(cr,
+            boolean enabled = Settings.System.getIntForUser(cr,
                     Settings.System.MULTI_AUDIO_FOCUS_ENABLED, 0, cr.getUserId()) != 0;
-            Log.i(TAG, "Multi audio focus " + (mMultiAudioFocusEnabled ? "enabled" : "disabled"));
+            updateMultiAudioFocus(enabled);
         }
     };
 
@@ -136,12 +136,8 @@ public class MediaFocusControl implements PlayerFocusEnforcer {
             super.onChange(selfChange);
             if (mContext == null) return;
             ContentResolver cr = mContext.getContentResolver();
-            boolean newValue = Settings.System.getIntForUser(cr,
+            mPerAppVolumeEnabled = Settings.System.getIntForUser(cr,
                     Settings.System.SHOW_APP_VOLUME, 1, cr.getUserId()) != 0;
-            if (mPerAppVolumeEnabled != newValue) {
-                mPerAppVolumeEnabled = newValue;
-                updateMultiAudioFocus(mMultiAudioFocusEnabled);
-            }
         }
     }
 
@@ -159,7 +155,7 @@ public class MediaFocusControl implements PlayerFocusEnforcer {
             final ContentResolver cr = mContext.getContentResolver();
             mPerAppVolumeEnabled = Settings.System.getIntForUser(cr,
                     Settings.System.SHOW_APP_VOLUME, 1, cr.getUserId()) != 0;
-            mMultiAudioFocusEnabled = mPerAppVolumeEnabled || isMultiFocus || Settings.System.getIntForUser(cr,
+            mMultiAudioFocusEnabled = isMultiFocus || Settings.System.getIntForUser(cr,
                     Settings.System.MULTI_AUDIO_FOCUS_ENABLED, 0, cr.getUserId()) != 0;
 
             cr.registerContentObserver(
@@ -1892,7 +1888,7 @@ public class MediaFocusControl implements PlayerFocusEnforcer {
     public void updateMultiAudioFocus(boolean enabled) {
         Log.d(TAG, "updateMultiAudioFocus( " + enabled + " )");
         synchronized (mAudioFocusLock) {
-            mMultiAudioFocusEnabled = mPerAppVolumeEnabled || enabled;
+            mMultiAudioFocusEnabled = enabled;
             if (mContext != null) {
                 final ContentResolver cr = mContext.getContentResolver();
                 Settings.System.putIntForUser(cr,

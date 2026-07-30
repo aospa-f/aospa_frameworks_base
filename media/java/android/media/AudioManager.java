@@ -9082,7 +9082,7 @@ public class AudioManager {
         for (Integer format : formatsList) {
             if (com.android.bluetooth.flags.Flags.leaudioCodecIdSupport()) {
                 // Use codec ID only — setCodecId() infers mCodecType automatically.
-                // Vendor codecs (AptxLe, AptxLeX) arrive from the stack as
+                // Vendor codecs (AptxLe, AptxLeX, AptxPlus) arrive from the stack as
                 // SOURCE_CODEC_TYPE_VENDOR_SPECIFIC; setCodecId() is the only
                 // way to distinguish them.
                 long codecId = AudioSystem.audioFormatToBluetoothLeAudioCodecId(format);

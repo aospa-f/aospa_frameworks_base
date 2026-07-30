@@ -289,6 +289,8 @@ public class AudioSystem
     public static final int VX_AUDIO_FORMAT_APTX_ADAPTIVE_QLEA       = 0x30000000;
     /** @hide */
     public static final int AUDIO_FORMAT_APTX_ADAPTIVE_R4            = 0x31000000;
+    /** @hide */
+    public static final int AUDIO_FORMAT_APTX_ADAPTIVE_PLUS          = 0x35000000;
 
     // 40-bit Bluetooth ASCS codec IDs for LE audio (Coding_Format | Company_ID | Vendor_Codec_ID)
     // Bit layout from LeAudioCodecId::getCodecIdRaw():
@@ -301,6 +303,8 @@ public class AudioSystem
     private static final long BLUETOOTH_LE_AUDIO_CODEC_ID_APTX_ADAPTIVE_LE = 0x0001_000a_ffL;
     // Qualcomm vendor: coding_format=0xFF, company_id=0x000A, vendor_codec_id=0x01AD (AptxLeX/R4)
     private static final long BLUETOOTH_LE_AUDIO_CODEC_ID_APTX_ADAPTIVE_R4 = 0x01ad_000a_ffL;
+    // Qualcomm vendor: coding_format=0xFF, company_id=0x000A, vendor_codec_id=0x05AD (AptX Plus)
+    private static final long BLUETOOTH_LE_AUDIO_CODEC_ID_APTX_PLUS        = 0x05ad_000a_ffL;
 
     /** @hide */
     @IntDef(
@@ -440,6 +444,7 @@ public class AudioSystem
             case AUDIO_FORMAT_OPUS_HI_RES:           return BLUETOOTH_LE_AUDIO_CODEC_ID_OPUS;
             case VX_AUDIO_FORMAT_APTX_ADAPTIVE_QLEA: return BLUETOOTH_LE_AUDIO_CODEC_ID_APTX_ADAPTIVE_LE;
             case AUDIO_FORMAT_APTX_ADAPTIVE_R4:      return BLUETOOTH_LE_AUDIO_CODEC_ID_APTX_ADAPTIVE_R4;
+            case AUDIO_FORMAT_APTX_ADAPTIVE_PLUS:    return BLUETOOTH_LE_AUDIO_CODEC_ID_APTX_PLUS;
             default:
                 Log.e(TAG, "Unknown audio format 0x" + Integer.toHexString(audioFormat)
                         + " for conversion to BT LE audio codec ID");

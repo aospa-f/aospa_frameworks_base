@@ -111,6 +111,11 @@ public class CachedBluetoothDevice implements Comparable<CachedBluetoothDevice> 
     private static final long MAX_LEAUDIO_DELAY_FOR_AUTO_CONNECT = 60000;
     private static final long MAX_MEDIA_PROFILE_CONNECT_DELAY = 60000;
 
+    // Bounded wait for BASS Remove Source to complete on all coordinated-set members before
+    // removeBond() tears down the shared LE ACL. Unpair proceeds regardless once it elapses.
+    private static final long BASS_REMOVE_WAIT_TIMEOUT_MS = 500;
+    private static final long BASS_REMOVE_WAIT_POLL_MS = 20;
+
     private static final int DEFAULT_LOW_BATTERY_THRESHOLD = 20;
 
     // To be used instead of a resource id to indicate that low battery states should not be
@@ -729,6 +734,13 @@ public class CachedBluetoothDevice implements Comparable<CachedBluetoothDevice> 
                         }
                     }
                     removeBroadcastSource(devicesToRemoveSource);
+                    // Wait for the BASS Remove Source write to complete on every coordinated-set
+                    // member before removeBond(). removeBond() expands to the whole CSIP set and
+                    // forces each member's profiles (incl. BASS) off the shared LE ACL; if that
+                    // teardown races ahead of an in-flight Remove Source write, that member keeps
+                    // syncing to the broadcast and still plays audio after unpair. Blocking here is
+                    // safe: unpair() is @WorkerThread. Bounded so a lost member cannot hang unpair.
+                    waitForBroadcastSourcesRemoved(devicesToRemoveSource);
                 }
                 final boolean successful = dev.removeBond();
                 if (successful) {
@@ -761,6 +773,42 @@ public class CachedBluetoothDevice implements Comparable<CachedBluetoothDevice> 
                 }
             }
         }
+    }
+
+    /**
+     * Blocks (bounded) until every device in {@code devices} reports no remaining broadcast
+     * source, so a subsequent removeBond() cannot tear the shared LE ACL down before the BASS
+     * Remove Source control-point write has completed. Must be called from a worker thread.
+     * Returns early once all sources are cleared, or after {@code BASS_REMOVE_WAIT_TIMEOUT_MS}.
+     */
+    @WorkerThread
+    private void waitForBroadcastSourcesRemoved(Set<BluetoothDevice> devices) {
+        if (mProfileManager == null || devices.isEmpty()) return;
+        LocalBluetoothLeBroadcast broadcast = mProfileManager.getLeAudioBroadcastProfile();
+        LocalBluetoothLeBroadcastAssistant assistant =
+                mProfileManager.getLeAudioBroadcastAssistantProfile();
+        if (broadcast == null || assistant == null || !broadcast.isEnabled(null)) return;
+
+        Log.d(TAG, "waitForBroadcastSourcesRemoved: start waiting");
+        final long deadline = SystemClock.uptimeMillis() + BASS_REMOVE_WAIT_TIMEOUT_MS;
+        while (SystemClock.uptimeMillis() < deadline) {
+            boolean allCleared = true;
+            for (BluetoothDevice device : devices) {
+                if (!assistant.getAllSources(device).isEmpty()) {
+                    allCleared = false;
+                    break;
+                }
+            }
+            if (allCleared) {
+                if (BluetoothUtils.D) {
+                    Log.d(TAG, "waitForBroadcastSourcesRemoved: all sources cleared");
+                }
+                return;
+            }
+            SystemClock.sleep(BASS_REMOVE_WAIT_POLL_MS);
+        }
+        Log.w(TAG, "waitForBroadcastSourcesRemoved: timed out after "
+                + BASS_REMOVE_WAIT_TIMEOUT_MS + "ms; proceeding with removeBond");
     }
 
     public int getProfileConnectionState(LocalBluetoothProfile profile) {

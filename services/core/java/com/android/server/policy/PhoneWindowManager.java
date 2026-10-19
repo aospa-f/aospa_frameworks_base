@@ -2409,7 +2409,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
         // Init display burn-in protection
         boolean burnInProtectionEnabled = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_enableBurnInProtection);
+                com.android.internal.R.bool.config_enableBurnInProtection)
+                && mContext.getResources().getBoolean(
+                        com.android.internal.R.bool.config_burnInProtectionUseDisplayOffset);
         // Allow a system property to override this. Used by developer settings.
         boolean burnInProtectionDevMode =
                 SystemProperties.getBoolean("persist.debug.force_burn_in", false);

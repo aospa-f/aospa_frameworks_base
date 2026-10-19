@@ -4375,6 +4375,11 @@
     <!-- If true, the display will be shifted around in ambient mode. -->
     <bool name="config_enableBurnInProtection">false</bool>
 
+    <!-- If true, burn-in protection shifts the whole display via DisplayManagerInternal offsets.
+         Set to false to keep config_enableBurnInProtection (SystemUI view-level shifting) while
+         leaving the display offset at (0,0), e.g. for panels with a fixed hardware cutout. -->
+    <bool name="config_burnInProtectionUseDisplayOffset">true</bool>
+
     <!-- Specifies the maximum burn-in offset displacement from the center. If -1, no maximum value
          will be used. -->
     <integer name="config_burnInProtectionMaxRadius">-1</integer>

@@ -334,6 +334,7 @@
   <java-symbol type="bool" name="config_enable_puk_unlock_screen" />
   <java-symbol type="bool" name="config_disableLockscreenByDefault" />
   <java-symbol type="bool" name="config_enableBurnInProtection" />
+  <java-symbol type="bool" name="config_burnInProtectionUseDisplayOffset" />
   <java-symbol type="bool" name="config_hotswapCapable" />
   <java-symbol type="integer" name="config_hsumBootStrategy" />
   <java-symbol type="integer" name="config_hsuActivitiesAllowlistMode" />

@@ -59,9 +59,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onEach
 
 private const val PILL_GAP_DP = 8f
-private const val PILL_SPACING_DP = 8f
-private const val PILL_WIDTH_DP = 60f
-private const val PILL_VERTICAL_PADDING_DP = 8f
 private const val APP_ICON_SIZE_DP = 24f
 private const val APP_ICON_BITMAP_PX = 64
 private const val ANIMATION_MS = 150L
@@ -83,6 +80,12 @@ constructor(
         val host = view as? ConstraintLayout
         val context = view.context
         val density = context.resources.displayMetrics.density
+        val resources = context.resources
+        val floatingSliderHorizontalPadding =
+            resources.getDimensionPixelSize(R.dimen.volume_dialog_floating_sliders_horizontal_padding)
+        val floatingSliderVerticalPadding =
+            resources.getDimensionPixelSize(R.dimen.volume_dialog_floating_sliders_vertical_padding)
+        val sliderWidth = resources.getDimensionPixelSize(R.dimen.volume_dialog_slider_width)
 
         val pillsContainer =
             LinearLayout(context).apply {
@@ -111,6 +114,8 @@ constructor(
                     .apply {
                         topToTop = mainSlider.id
                         bottomToBottom = mainSlider.id
+                        topMargin = -floatingSliderVerticalPadding
+                        bottomMargin = -floatingSliderVerticalPadding
                         endToStart = background.id
                         marginEnd = (PILL_GAP_DP * density).toInt()
                     }
@@ -162,8 +167,12 @@ constructor(
                 }
             val frame =
                 FrameLayout(context).apply {
-                    val v = (PILL_VERTICAL_PADDING_DP * density).toInt()
-                    setPadding(0, v, 0, v)
+                    setPadding(
+                        floatingSliderHorizontalPadding,
+                        floatingSliderVerticalPadding,
+                        floatingSliderHorizontalPadding,
+                        floatingSliderVerticalPadding,
+                    )
                     addView(
                         compose,
                         FrameLayout.LayoutParams(
@@ -174,12 +183,14 @@ constructor(
                 }
             val params =
                 LinearLayout.LayoutParams(
-                        (PILL_WIDTH_DP * density).toInt(),
+                        sliderWidth + 2 * floatingSliderHorizontalPadding,
                         ViewGroup.LayoutParams.MATCH_PARENT,
                     )
                     .apply {
                         if (pillsContainer.childCount > 0) {
-                            marginStart = (PILL_SPACING_DP * density).toInt()
+                            marginStart = resources.getDimensionPixelSize(
+                                R.dimen.volume_dialog_floating_sliders_spacing
+                            )
                         }
                     }
             pillsContainer.addView(frame, params)
@@ -265,7 +276,7 @@ constructor(
     private fun createPillBackground(view: View, blurSupported: Boolean): Drawable {
         val radius =
             view.resources
-                .getDimensionPixelSize(R.dimen.volume_dialog_floating_slider_background_corner_radius)
+                .getDimensionPixelSize(R.dimen.volume_dialog_background_corner_radius)
                 .toFloat()
         val surface = GradientDrawable().apply { cornerRadius = radius }
         val viewRoot = view.viewRootImpl

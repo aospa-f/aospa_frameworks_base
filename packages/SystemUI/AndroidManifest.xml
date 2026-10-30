@@ -331,9 +331,6 @@
 
     <uses-permission android:name="android.permission.HIDE_NON_SYSTEM_OVERLAY_WINDOWS" />
 
-    <!-- To broadcast status of the GameSpaceManager -->
-    <uses-permission android:name="android.permission.MANAGE_GAME_MODE" />
-
     <!-- Permission to change the display color -->
     <uses-permission android:name="android.permission.CONTROL_DISPLAY_COLOR_TRANSFORMS" />
 

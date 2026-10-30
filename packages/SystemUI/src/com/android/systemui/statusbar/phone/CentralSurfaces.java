@@ -92,10 +92,6 @@ public interface CentralSurfaces extends Dumpable, LifecycleOwner, CoreStartable
     /** Default impl for CoreStartable. */
     default void start() {}
 
-    default com.android.systemui.statusbar.policy.GameSpaceManager getGameSpaceManager() {
-        return null;
-    }
-
     boolean updateIsKeyguard();
 
     boolean updateIsKeyguard(boolean forceStateChange);

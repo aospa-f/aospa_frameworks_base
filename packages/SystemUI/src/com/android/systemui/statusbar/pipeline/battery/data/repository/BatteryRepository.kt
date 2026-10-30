@@ -52,6 +52,9 @@ interface BatteryRepository {
      */
     val isPluggedIn: Flow<Boolean>
 
+    /** True if the battery is actively charging */
+    val isCharging: Flow<Boolean>
+
     /** Is power saver enabled */
     val isPowerSaveEnabled: Flow<Boolean>
 
@@ -116,7 +119,9 @@ constructor(
                             pluggedIn: Boolean,
                             charging: Boolean,
                         ) {
-                            trySend { prev -> prev.copy(level = level, isPluggedIn = pluggedIn) }
+                            trySend { prev ->
+                                prev.copy(level = level, isPluggedIn = pluggedIn, isCharging = charging)
+                            }
                         }
 
                         override fun onPowerSaveChanged(isPowerSave: Boolean) {
@@ -171,6 +176,17 @@ constructor(
                 initialValue = batteryState.value.isPluggedIn,
             )
             .stateIn(scope, SharingStarted.WhileSubscribed(), batteryState.value.isPluggedIn)
+
+    override val isCharging =
+        batteryState
+            .map { it.isCharging }
+            .distinctUntilChanged()
+            .logDiffsForTable(
+                tableLogBuffer = tableLog,
+                columnName = COL_CHARGING,
+                initialValue = batteryState.value.isCharging,
+            )
+            .stateIn(scope, SharingStarted.WhileSubscribed(), batteryState.value.isCharging)
 
     override val isPowerSaveEnabled =
         batteryState
@@ -309,6 +325,7 @@ constructor(
 
     companion object {
         private const val COL_PLUGGED_IN = "pluggedIn"
+        private const val COL_CHARGING = "charging"
         private const val COL_POWER_SAVE = "powerSave"
         private const val COL_EXTREME_POWER_SAVE = "extremePowerSave"
         private const val COL_DEFEND = "defend"
@@ -325,6 +342,7 @@ constructor(
 private data class BatteryCallbackState(
     val level: Int? = null,
     val isPluggedIn: Boolean = false,
+    val isCharging: Boolean = false,
     val isPowerSaveEnabled: Boolean = false,
     val isExtremePowerSaveEnabled: Boolean = false,
     val isBatteryDefenderEnabled: Boolean = false,

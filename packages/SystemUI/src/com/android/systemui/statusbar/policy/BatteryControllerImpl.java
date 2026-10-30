@@ -29,8 +29,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.ContentObserver;
 import android.hardware.usb.UsbManager;
 import android.os.BatteryManager;
+import android.provider.Settings;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.PowerManager;
@@ -114,6 +116,25 @@ public class BatteryControllerImpl extends BroadcastReceiver implements BatteryC
     private AtomicReference<WeakReference<Expandable>> mPowerSaverStartExpandable =
             new AtomicReference<>();
 
+    private int mLastBatteryStatus = BatteryManager.BATTERY_STATUS_UNKNOWN;
+
+    private final ContentObserver mBypassChargeObserver = new ContentObserver(null) {
+        @Override
+        public void onChange(boolean selfChange) {
+            mMainHandler.post(() -> updateChargingState());
+        }
+    };
+
+    private void updateChargingState() {
+        boolean isBypassActive = Settings.System.getInt(mContext.getContentResolver(),
+                "bypass_charging_active", 0) == 1;
+        boolean charging = !isBypassActive && (mCharged || mLastBatteryStatus == BatteryManager.BATTERY_STATUS_CHARGING);
+        if (charging != mCharging) {
+            mCharging = charging;
+            fireBatteryLevelChanged();
+        }
+    }
+
     @VisibleForTesting
     public BatteryControllerImpl(
             Context context,
@@ -162,6 +183,11 @@ public class BatteryControllerImpl extends BroadcastReceiver implements BatteryC
         }
         mDemoModeController.addCallback(this);
         mDumpManager.registerDumpable(TAG, this);
+        mContext.getContentResolver().registerContentObserver(
+                Settings.System.getUriFor("bypass_charging_active"),
+                false,
+                mBypassChargeObserver
+        );
         updatePowerSave();
         updateEstimateInBackground();
     }
@@ -259,10 +285,13 @@ public class BatteryControllerImpl extends BroadcastReceiver implements BatteryC
             int previousPluggedChargingSource = mPluggedChargingSource;
             mPluggedChargingSource = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);
             mPluggedIn = mPluggedChargingSource != 0;
-            final int status = intent.getIntExtra(BatteryManager.EXTRA_STATUS,
+            mLastBatteryStatus = intent.getIntExtra(BatteryManager.EXTRA_STATUS,
                     BatteryManager.BATTERY_STATUS_UNKNOWN);
+            final int status = mLastBatteryStatus;
             mCharged = status == BatteryManager.BATTERY_STATUS_FULL;
-            mCharging = mCharged || status == BatteryManager.BATTERY_STATUS_CHARGING;
+            final boolean isBypassActive = Settings.System.getInt(mContext.getContentResolver(),
+                    "bypass_charging_active", 0) == 1;
+            mCharging = !isBypassActive && (mCharged || status == BatteryManager.BATTERY_STATUS_CHARGING);
             if (mWirelessCharging != (mCharging
                     && intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
                     == BatteryManager.BATTERY_PLUGGED_WIRELESS)) {

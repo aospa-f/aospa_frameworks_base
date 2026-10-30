@@ -52,8 +52,8 @@ class BatteryInteractor @Inject constructor(repo: BatteryRepository) {
      * If an incompatible charger is detected, we don't consider the battery to be charging.
      */
     val isCharging =
-        combine(repo.isPluggedIn, repo.isIncompatibleCharging) { pluggedIn, incompatible ->
-            !incompatible && pluggedIn
+        combine(repo.isCharging, repo.isIncompatibleCharging) { charging, incompatible ->
+            !incompatible && charging
         }
 
     /**

@@ -7137,6 +7137,15 @@ public final class Settings {
          * @hide
          */
         public static final String SHOW_APP_VOLUME = "show_app_volume";
+
+        /**
+         * Whether to mute notification sound and vibration when screen is on and unlocked.
+         * 0 = disabled (normal alerting)
+         * 1 = enabled (silence audio/vibration while screen is actively in use)
+         * @hide
+         */
+        @Readable
+        public static final String NOTIFICATION_SCREEN_ON_MUTE = "notification_screen_on_mute";
          * Keys we no longer back up under the current schema, but want to continue to
          * process when restoring historical backup datasets.
          *

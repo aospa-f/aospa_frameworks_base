@@ -138,6 +138,7 @@ public final class NotificationAttentionHelper {
     static final int MUTE_REASON_OTHER_INSISTENT_PLAYING = 1 << 13;
     static final int MUTE_REASON_SUPPRESSED_BUBBLE = 1 << 14;
     static final int MUTE_REASON_COOLDOWN = 1 << 15;
+    static final int MUTE_REASON_SCREEN_ON = 1 << 16;
 
     @IntDef(prefix = { "MUTE_REASON_" }, value = {
         MUTE_REASON_NOT_MUTED,
@@ -152,6 +153,7 @@ public final class NotificationAttentionHelper {
         MUTE_REASON_OTHER_INSISTENT_PLAYING,
         MUTE_REASON_SUPPRESSED_BUBBLE,
         MUTE_REASON_COOLDOWN,
+        MUTE_REASON_SCREEN_ON,
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface MuteReason {}
@@ -689,11 +691,43 @@ public final class NotificationAttentionHelper {
                 mNMP.getNotificationByKey(mVibrateNotificationKey));
     }
 
+    private boolean isScreenOnMuteExempt(final NotificationRecord record) {
+        final Notification notification = record.getNotification();
+        if (notification == null) {
+            return false;
+        }
+        if (notification.isStyle(Notification.CallStyle.class)
+                || notification.fullScreenIntent != null
+                || (record.getFlags() & Notification.FLAG_INSISTENT) != 0) {
+            return true;
+        }
+        final String category = notification.category;
+        if (Notification.CATEGORY_CALL.equals(category)
+                || Notification.CATEGORY_ALARM.equals(category)
+                || Notification.CATEGORY_REMINDER.equals(category)
+                || Notification.CATEGORY_EVENT.equals(category)) {
+            return true;
+        }
+        return false;
+    }
+
     @MuteReason int shouldMuteNotificationLocked(final NotificationRecord record,
             final Signals signals, boolean hasAudibleAlert) {
         // Suppressed because no audible alert
         if (!hasAudibleAlert) {
             return MUTE_REASON_NOT_AUDIBLE;
+        }
+
+        // Suppressed because user is actively using the screen (Smart Screen-On Notification Muting)
+        if (mUserPresent) {
+            boolean muteScreenOn = Settings.System.getIntForUser(
+                    mContext.getContentResolver(),
+                    Settings.System.NOTIFICATION_SCREEN_ON_MUTE,
+                    0,
+                    UserHandle.USER_CURRENT) == 1;
+            if (muteScreenOn && !isScreenOnMuteExempt(record)) {
+                return MUTE_REASON_SCREEN_ON;
+            }
         }
         // Suppressed because it's a silent update
         final Notification notification = record.getNotification();

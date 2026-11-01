@@ -364,6 +364,9 @@ private class CellularIconViewModelKairos(
         } else {
             activity.map { it != null && (it.hasActivityIn || it.hasActivityOut) }
         }
-    override val volteId: KairosState<Int> = iconInteractor.volteId
+    override val volteId: KairosState<Int> =
+        combine(iconInteractor.volteId, iconInteractor.isMobileHdForceHidden) { id, hidden ->
+            if (hidden) 0 else id
+        }
     override val showSignalStrengthIcon: KairosState<Boolean> = iconInteractor.showSignalStrengthIcon
 }

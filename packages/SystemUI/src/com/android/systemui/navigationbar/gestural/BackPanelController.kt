@@ -17,7 +17,10 @@ package com.android.systemui.navigationbar.gestural
 
 import android.content.Context
 import android.content.res.Configuration
+import android.database.ContentObserver
 import android.graphics.Color
+import android.os.UserHandle
+import android.provider.Settings
 import android.graphics.Paint
 import android.graphics.Point
 import android.os.Handler
@@ -131,6 +134,14 @@ constructor(
     private var startX = 0f
     private var startY = 0f
     private var startIsLeft: Boolean? = null
+
+    private var backGestureArrowEnabled = true
+
+    private val backGestureArrowObserver = object : ContentObserver(mainHandler) {
+        override fun onChange(selfChange: Boolean) {
+            updateBackGestureArrowVisibility()
+        }
+    }
 
     private var gestureEntryTime = 0L
     private var gestureInactiveTime = 0L
@@ -256,6 +267,27 @@ constructor(
         updateArrowState(GestureState.GONE, force = true)
         updateRestingArrowDimens()
         configurationController.addCallback(configurationListener)
+        context.contentResolver.registerContentObserver(
+            Settings.Secure.getUriFor(Settings.Secure.BACK_GESTURE_ARROW),
+            false,
+            backGestureArrowObserver,
+            UserHandle.USER_ALL
+        )
+        updateBackGestureArrowVisibility()
+    }
+
+    private fun updateBackGestureArrowVisibility() {
+        backGestureArrowEnabled = Settings.Secure.getIntForUser(
+            context.contentResolver,
+            Settings.Secure.BACK_GESTURE_ARROW,
+            1,
+            UserHandle.USER_CURRENT
+        ) != 0
+        if (!backGestureArrowEnabled) {
+            mView.visibility = android.view.View.GONE
+        } else if (currentState != GestureState.GONE) {
+            mView.visibility = android.view.View.VISIBLE
+        }
     }
 
     /** Update the arrow direction. The arrow should point the same way for both panels. */
@@ -265,6 +297,7 @@ constructor(
 
     override fun onViewDetached() {
         configurationController.removeCallback(configurationListener)
+        context.contentResolver.unregisterContentObserver(backGestureArrowObserver)
     }
 
     override fun onMotionEvent(event: MotionEvent) {
@@ -897,7 +930,7 @@ constructor(
                 mView.isVisible = false
             }
             GestureState.ENTRY -> {
-                mView.isVisible = true
+                mView.isVisible = backGestureArrowEnabled
 
                 updateRestingArrowDimens()
                 gestureEntryTime = systemClock.uptimeMillis()

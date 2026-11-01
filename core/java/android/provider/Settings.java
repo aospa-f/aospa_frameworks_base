@@ -13511,6 +13511,15 @@ public final class Settings {
                 "back_gesture_inset_scale_right";
 
         /**
+         * Whether to show the back gesture arrow indicator.
+         * 1 = show (default), 0 = hide.
+         * @hide
+         */
+        @Readable
+        public static final String BACK_GESTURE_ARROW =
+                "back_gesture_arrow";
+
+        /**
          * Current provider of proximity-based sharing services.
          * Default value in @string/config_defaultNearbySharingComponent.
          * No VALIDATOR as this setting will not be backed up.

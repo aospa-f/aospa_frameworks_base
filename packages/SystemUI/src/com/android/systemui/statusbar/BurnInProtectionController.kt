@@ -79,6 +79,7 @@ class BurnInProtectionController @Inject constructor(
             settingObserver,
             UserHandle.USER_ALL
         )
+        startShiftTimer()
     }
 
     private fun isEnabled(): Boolean =

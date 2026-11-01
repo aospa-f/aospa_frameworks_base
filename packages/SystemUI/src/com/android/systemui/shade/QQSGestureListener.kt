@@ -44,6 +44,14 @@ class QQSGestureListener @Inject constructor(
     }
 
     override fun onDoubleTapEvent(e: MotionEvent): Boolean {
+        if (android.provider.Settings.Secure.getIntForUser(
+                context.contentResolver,
+                android.provider.Settings.Secure.DOUBLE_TAP_TO_SLEEP,
+                1,
+                android.os.UserHandle.USER_CURRENT
+            ) != 1) {
+            return false
+        }
         // Go to sleep when double tapping the QQS status bar
         // or lockscreen (keyguard showing, but not bouncer)
         if (

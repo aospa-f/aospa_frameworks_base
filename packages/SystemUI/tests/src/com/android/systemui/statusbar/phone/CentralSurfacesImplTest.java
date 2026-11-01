@@ -169,6 +169,7 @@ import com.android.systemui.statusbar.notification.row.NotificationGutsManager;
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout;
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController;
 import com.android.systemui.statusbar.policy.BatteryController;
+import com.android.systemui.statusbar.policy.BurnInProtectionController;
 import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
 import com.android.systemui.statusbar.policy.ExtensionController;
@@ -588,7 +589,8 @@ public class CentralSurfacesImplTest extends SysuiTestCase {
                 mQuickAccessWalletController,
                 mWindowManager,
                 mWindowManagerProvider,
-                mock(SessionTracker.class)
+                mock(SessionTracker.class),
+                mock(BurnInProtectionController.class)
         );
         mScreenLifecycle.addObserver(mCentralSurfaces.mScreenObserver);
         mCentralSurfaces.initShadeVisibilityListener();

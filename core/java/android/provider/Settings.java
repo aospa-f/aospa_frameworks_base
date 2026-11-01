@@ -13520,6 +13520,15 @@ public final class Settings {
                 "back_gesture_arrow";
 
         /**
+         * Whether to enable status bar burn-in protection by periodically shifting status
+         * bar contents. 1 = enabled (default), 0 = disabled.
+         * @hide
+         */
+        @Readable
+        public static final String STATUS_BAR_BURN_IN_PROTECTION =
+                "status_bar_burn_in_protection";
+
+        /**
          * Current provider of proximity-based sharing services.
          * Default value in @string/config_defaultNearbySharingComponent.
          * No VALIDATOR as this setting will not be backed up.

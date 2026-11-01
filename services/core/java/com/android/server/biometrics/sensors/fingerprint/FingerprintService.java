@@ -1139,7 +1139,7 @@ public class FingerprintService extends SystemService {
         String[] a = ServiceManager.getDeclaredInstances(IFingerprint.DESCRIPTOR);
         Slog.i(TAG, "Before:getDeclaredInstances: IFingerprint instance found, a.length="
                 + a.length);
-        if (!ArrayUtils.contains(a, "virtual")) {
+        if (!ArrayUtils.contains(a, "virtual") && shouldIncludeVirtualHal()) {
             // Now, the virtual hal is registered with IVirtualHal interface and it is also
             //   moved from vendor to system_ext partition without a device manifest. So
             //   if the old vhal is not declared, add here.
@@ -1147,6 +1147,25 @@ public class FingerprintService extends SystemService {
         }
         Slog.i(TAG, "After:getDeclaredInstances: a.length=" + a.length);
         return a;
+    }
+
+    /**
+     * The virtual HAL is a testing-only component. Only include it when the build is
+     * debuggable or when the service is actually available. Otherwise, the biometric
+     * registration thread blocks in ServiceManager.waitForService() forever on devices
+     * that do not ship the virtual HAL, causing UI stalls.
+     */
+    private static boolean shouldIncludeVirtualHal() {
+        if (Build.isDebuggable()) {
+            return true;
+        }
+        try {
+            return ServiceManager.getService(
+                    android.hardware.biometrics.fingerprint.virtualhal.IVirtualHal.DESCRIPTOR
+                            + "/virtual") != null;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     @NonNull

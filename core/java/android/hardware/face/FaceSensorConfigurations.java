@@ -24,6 +24,7 @@ import android.hardware.biometrics.face.IFace;
 import android.hardware.biometrics.face.SensorProps;
 import android.hardware.biometrics.face.virtualhal.IVirtualHal;
 import android.os.Binder;
+import android.os.IBinder;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.RemoteException;
@@ -184,8 +185,16 @@ public class FaceSensorConfigurations implements Parcelable {
             String fqNameMapped = remapFqName(fqName);
             Slog.i(TAG, "getIFace fqName is mapped: " + fqName + "->" + fqNameMapped);
             try {
+                // Use a non-blocking lookup for the virtual HAL. waitForService() would
+                // block the biometric registration thread indefinitely on devices that
+                // do not ship the testing-only virtual HAL.
+                IBinder binder = ServiceManager.getService(fqNameMapped);
+                if (binder == null) {
+                    Slog.w(TAG, "Virtual HAL is not available: " + fqNameMapped);
+                    return null;
+                }
                 IVirtualHal vhal = IVirtualHal.Stub.asInterface(
-                        Binder.allowBlocking(ServiceManager.waitForService(fqNameMapped)));
+                        Binder.allowBlocking(binder));
                 return vhal != null ? vhal.getFaceHal() : null;
             } catch (RemoteException e) {
                 Slog.e(TAG, "Remote exception in vhal.getFaceHal() call" + fqNameMapped);

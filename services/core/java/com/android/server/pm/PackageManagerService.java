@@ -2681,6 +2681,10 @@ public class PackageManagerService implements PackageSender, TestUtilityService 
         // Disable or enable components marked at build-time
         for (String name : components) {
             ComponentName cn = ComponentName.unflattenFromString(name);
+            if (cn == null) {
+                Slog.w(TAG, "Unable to parse component name " + name);
+                continue;
+            }
             if (!enable) {
                 mDisabledComponentsList.add(cn);
             }

@@ -2419,16 +2419,16 @@
     <bool name="config_volume_up_to_exit_silent">false</bool>
 
     <!-- The number of volume steps for the notification stream -->
-    <integer name="config_audio_notif_vol_steps">7</integer>
+    <integer name="config_audio_notif_vol_steps">10</integer>
 
     <!-- The default volume for the notification stream -->
-    <integer name="config_audio_notif_vol_default">5</integer>
+    <integer name="config_audio_notif_vol_default">7</integer>
 
     <!-- The number of volume steps for the ring stream -->
-    <integer name="config_audio_ring_vol_steps">7</integer>
+    <integer name="config_audio_ring_vol_steps">10</integer>
 
     <!-- The default volume for the ring stream -->
-    <integer name="config_audio_ring_vol_default">5</integer>
+    <integer name="config_audio_ring_vol_default">7</integer>
 
     <!-- The default min volume for the alarm stream -->
     <integer name="config_audio_alarm_min_vol">1</integer>

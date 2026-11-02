@@ -110,6 +110,8 @@ import com.android.systemui.qs.FgsManagerController;
 import com.android.systemui.qs.FgsManagerControllerImpl;
 import com.android.systemui.qs.footer.dagger.FooterActionsModule;
 import com.android.systemui.qs.tiles.impl.qr.ui.model.QRCodeScannerModule;
+import com.android.systemui.qs.tiles.RefreshRateTileModule;
+import com.android.systemui.qs.tiles.PreferredNetworkTileModule;
 import com.android.systemui.radio.IdleRadioTimeoutStartableModule;
 import com.android.systemui.recents.Recents;
 import com.android.systemui.recordissue.RecordIssueModule;
@@ -282,6 +284,8 @@ import javax.inject.Named;
         SensorModule.class,
         SecurityRepositoryModule.class,
         ScreenRecordModule.class,
+        RefreshRateTileModule.class,
+        PreferredNetworkTileModule.class,
         SmartspaceModule.class,
         StatusBarEventsModule.class,
         StatusBarFeaturePodsModule.class,

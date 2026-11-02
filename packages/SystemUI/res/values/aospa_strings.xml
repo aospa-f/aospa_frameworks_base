@@ -48,4 +48,16 @@
     <string name="global_action_restart_download_progress">Restarting to download mode…</string>
     <!-- Restart to fastboot mode progress dialog. This is shown if the user chooses to restart the device. -->
     <string name="global_action_restart_fastboot_progress">Restarting to fastbootd mode…</string>
+
+    <!-- Refresh rate tile -->
+    <string name="refresh_rate_tile_label">Refresh rate</string>
+    <string name="refresh_rate_tile_90_adaptive">90 Hz adaptive</string>
+    <string name="refresh_rate_tile_120">120 Hz</string>
+    <string name="refresh_rate_tile_battery_saver">Battery saver enabled</string>
+
+    <!-- Preferred network tile -->
+    <string name="preferred_network_tile_label">Network mode</string>
+    <string name="preferred_network_5g_only">5G only</string>
+    <string name="preferred_network_4g_only">4G only</string>
+    <string name="preferred_network_5g_preferred">Preferred 5G</string>
 </resources>

@@ -20,7 +20,10 @@ import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.power.Boost;
 import android.media.AudioManager;
+import android.media.session.MediaController;
 import android.media.session.MediaSessionLegacyHelper;
+import android.media.session.MediaSessionManager;
+import android.media.session.PlaybackState;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.HandlerThread;
@@ -49,6 +52,8 @@ import com.android.server.statusbar.StatusBarManagerInternal;
 import com.android.internal.R;
 
 import java.lang.IllegalArgumentException;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Key handler for screen off gestures.
@@ -82,6 +87,11 @@ public class KeyHandler {
     private static final int MUSIC_PREVIOUS = 7;
     private static final int CAMERA = 8;
     private static final int DIALER = 9;
+    private static final int VOLUME_UP = 10;
+    private static final int VOLUME_DOWN = 11;
+
+    private static final String SETTING_OFFSCREEN_MUSIC_APPS =
+            "offscreen_gesture_music_apps";
 
     private final Context mContext;
     private PowerManager mPowerManager;
@@ -516,7 +526,9 @@ public class KeyHandler {
                 vibrate = true;
                 break;
             case MUSIC_PLAY_PAUSE:
-                handled = dispatchMediaKeyWithWakeLockToMediaSession(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
+                handled = isMusicActiveForGesture()
+                        && dispatchMediaKeyWithWakeLockToMediaSession(
+                                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
                 vibrate = true;
                 break;
             case TORCH:
@@ -524,11 +536,25 @@ public class KeyHandler {
                 vibrate = true;
                 break;
             case MUSIC_PREVIOUS:
-                handled = isMusicActive() && dispatchMediaKeyWithWakeLockToMediaSession(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
+                handled = isMusicActiveForGesture()
+                        && dispatchMediaKeyWithWakeLockToMediaSession(
+                                KeyEvent.KEYCODE_MEDIA_PREVIOUS);
                 vibrate = true;
                 break;
             case MUSIC_NEXT:
-                handled = isMusicActive() && dispatchMediaKeyWithWakeLockToMediaSession(KeyEvent.KEYCODE_MEDIA_NEXT);
+                handled = isMusicActiveForGesture()
+                        && dispatchMediaKeyWithWakeLockToMediaSession(
+                                KeyEvent.KEYCODE_MEDIA_NEXT);
+                vibrate = true;
+                break;
+            case VOLUME_UP:
+                handled = isMusicActiveForGesture()
+                        && adjustMusicVolume(AudioManager.ADJUST_RAISE);
+                vibrate = true;
+                break;
+            case VOLUME_DOWN:
+                handled = isMusicActiveForGesture()
+                        && adjustMusicVolume(AudioManager.ADJUST_LOWER);
                 vibrate = true;
                 break;
             case WAKE_UP:
@@ -739,6 +765,55 @@ public class KeyHandler {
             return mAudioManager.isMusicActive();
         }
         return false;
+    }
+
+    private boolean isMusicActiveForGesture() {
+        if (!isMusicActive()) {
+            return false;
+        }
+
+        final String allowed = Settings.System.getStringForUser(
+                mContext.getContentResolver(), SETTING_OFFSCREEN_MUSIC_APPS,
+                UserHandle.USER_CURRENT);
+        if (TextUtils.isEmpty(allowed)) {
+            return true;
+        }
+
+        final Set<String> allowedPackages = new HashSet<>();
+        for (String pkg : allowed.split(",")) {
+            if (!TextUtils.isEmpty(pkg)) {
+                allowedPackages.add(pkg);
+            }
+        }
+        if (allowedPackages.isEmpty()) {
+            return true;
+        }
+
+        final MediaSessionManager manager =
+                mContext.getSystemService(MediaSessionManager.class);
+        if (manager == null) {
+            return false;
+        }
+        try {
+            for (MediaController controller : manager.getActiveSessions(null)) {
+                final PlaybackState state = controller.getPlaybackState();
+                if (state != null && state.getState() == PlaybackState.STATE_PLAYING
+                        && allowedPackages.contains(controller.getPackageName())) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Unable to query active media sessions", e);
+        }
+        return false;
+    }
+
+    private boolean adjustMusicVolume(int direction) {
+        if (mAudioManager == null) {
+            return false;
+        }
+        mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0);
+        return true;
     }
 
     private void dismissKeyguard() {

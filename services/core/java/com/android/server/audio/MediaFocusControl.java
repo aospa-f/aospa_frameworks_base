@@ -1656,8 +1656,13 @@ public class MediaFocusControl implements PlayerFocusEnforcer {
             final FocusRequester nfr = new FocusRequester(aa, focusChangeHint, flags, fd, cb,
                     clientId, afdh, callingPackageName, uid, this, sdk, mEventLogger);
 
+            // Media apps (e.g. reels) request transient exclusive focus; don't pause others
+            final boolean isMediaExclusive = !isForCall
+                    && aa.getUsage() == AudioAttributes.USAGE_MEDIA
+                    && focusChangeHint == AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE;
+
             if (mMultiAudioFocusEnabled
-                    && (focusChangeHint == AudioManager.AUDIOFOCUS_GAIN)) {
+                    && (focusChangeHint == AudioManager.AUDIOFOCUS_GAIN || isMediaExclusive)) {
                 if (isForCall) {
                     if (!mMultiAudioFocusList.isEmpty()) {
                         for (FocusRequester multifr : mMultiAudioFocusList) {

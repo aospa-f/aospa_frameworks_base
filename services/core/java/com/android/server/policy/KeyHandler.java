@@ -90,6 +90,9 @@ public class KeyHandler {
     private static final int VOLUME_UP = 10;
     private static final int VOLUME_DOWN = 11;
 
+    // Screen-off volume gestures should move several steps per gesture.
+    private static final int VOLUME_GESTURE_STEPS = 3;
+
     private static final String SETTING_OFFSCREEN_MUSIC_APPS =
             "offscreen_gesture_music_apps";
 
@@ -823,7 +826,9 @@ public class KeyHandler {
         if (mAudioManager == null) {
             return false;
         }
-        mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0);
+        for (int i = 0; i < VOLUME_GESTURE_STEPS; i++) {
+            mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0);
+        }
         return true;
     }
 

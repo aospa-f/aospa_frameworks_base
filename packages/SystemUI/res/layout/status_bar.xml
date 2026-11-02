@@ -91,6 +91,7 @@
 
                     <com.android.systemui.statusbar.policy.Clock
                         android:id="@+id/clock"
+                        systemui:isStatusBar="true"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:minHeight="@dimen/status_bar_icon_container_height"

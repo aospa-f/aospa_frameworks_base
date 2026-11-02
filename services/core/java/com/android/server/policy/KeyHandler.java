@@ -526,7 +526,7 @@ public class KeyHandler {
                 vibrate = true;
                 break;
             case MUSIC_PLAY_PAUSE:
-                handled = isMusicActiveForGesture()
+                handled = isMusicSessionAvailableForGesture(true)
                         && dispatchMediaKeyWithWakeLockToMediaSession(
                                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
                 vibrate = true;
@@ -536,13 +536,13 @@ public class KeyHandler {
                 vibrate = true;
                 break;
             case MUSIC_PREVIOUS:
-                handled = isMusicActiveForGesture()
+                handled = isMusicSessionAvailableForGesture(true)
                         && dispatchMediaKeyWithWakeLockToMediaSession(
                                 KeyEvent.KEYCODE_MEDIA_PREVIOUS);
                 vibrate = true;
                 break;
             case MUSIC_NEXT:
-                handled = isMusicActiveForGesture()
+                handled = isMusicSessionAvailableForGesture(true)
                         && dispatchMediaKeyWithWakeLockToMediaSession(
                                 KeyEvent.KEYCODE_MEDIA_NEXT);
                 vibrate = true;
@@ -768,24 +768,29 @@ public class KeyHandler {
     }
 
     private boolean isMusicActiveForGesture() {
-        if (!isMusicActive()) {
-            return false;
-        }
+        return isMusicSessionAvailableForGesture(false);
+    }
 
+    /**
+     * Returns whether a media session eligible for a screen-off gesture is active.
+     * Play/pause and track-skip gestures also accept a paused session so the first
+     * gesture can resume playback; volume gestures remain playing-only.
+     */
+    private boolean isMusicSessionAvailableForGesture(boolean allowPaused) {
         final String allowed = Settings.System.getStringForUser(
                 mContext.getContentResolver(), SETTING_OFFSCREEN_MUSIC_APPS,
                 UserHandle.USER_CURRENT);
-        if (TextUtils.isEmpty(allowed)) {
-            return true;
-        }
-
         final Set<String> allowedPackages = new HashSet<>();
-        for (String pkg : allowed.split(",")) {
-            if (!TextUtils.isEmpty(pkg)) {
-                allowedPackages.add(pkg);
+        if (!TextUtils.isEmpty(allowed)) {
+            for (String pkg : allowed.split(",")) {
+                if (!TextUtils.isEmpty(pkg)) {
+                    allowedPackages.add(pkg);
+                }
             }
         }
-        if (allowedPackages.isEmpty()) {
+        final boolean filterPackages = !allowedPackages.isEmpty();
+
+        if (!filterPackages && !allowPaused && isMusicActive()) {
             return true;
         }
 
@@ -797,8 +802,14 @@ public class KeyHandler {
         try {
             for (MediaController controller : manager.getActiveSessions(null)) {
                 final PlaybackState state = controller.getPlaybackState();
-                if (state != null && state.getState() == PlaybackState.STATE_PLAYING
-                        && allowedPackages.contains(controller.getPackageName())) {
+                if (state == null) {
+                    continue;
+                }
+                final int playbackState = state.getState();
+                final boolean active = playbackState == PlaybackState.STATE_PLAYING
+                        || (allowPaused && playbackState == PlaybackState.STATE_PAUSED);
+                if (active && (!filterPackages
+                        || allowedPackages.contains(controller.getPackageName()))) {
                     return true;
                 }
             }

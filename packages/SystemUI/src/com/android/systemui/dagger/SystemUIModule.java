@@ -110,6 +110,7 @@ import com.android.systemui.qs.FgsManagerController;
 import com.android.systemui.qs.FgsManagerControllerImpl;
 import com.android.systemui.qs.footer.dagger.FooterActionsModule;
 import com.android.systemui.qs.tiles.impl.qr.ui.model.QRCodeScannerModule;
+import com.android.systemui.radio.IdleRadioTimeoutStartableModule;
 import com.android.systemui.recents.Recents;
 import com.android.systemui.recordissue.RecordIssueModule;
 import com.android.systemui.rotation.impl.RotationModule;
@@ -243,6 +244,7 @@ import javax.inject.Named;
         DreamModule.class,
         EventLogModule.class,
         FalsingModule.class,
+        IdleRadioTimeoutStartableModule.class,
         FlagsModule.class,
         FlagDependenciesModule.class,
         FooterActionsModule.class,

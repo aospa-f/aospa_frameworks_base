@@ -58,7 +58,7 @@ class ScreenshotDetectionControllerTest : SysuiTestCase() {
     fun setup() {
         MockitoAnnotations.initMocks(this)
 
-        controller = ScreenshotDetectionController(windowManager, packageManager)
+        controller = ScreenshotDetectionController(mContext, windowManager, packageManager)
     }
 
     @Test

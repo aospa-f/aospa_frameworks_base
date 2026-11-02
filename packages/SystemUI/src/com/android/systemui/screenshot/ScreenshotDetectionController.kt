@@ -16,21 +16,25 @@
 
 package com.android.systemui.screenshot
 
+import android.content.Context
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.ComponentInfoFlags
 import android.content.pm.PackageManager.MATCH_ANY_USER
 import android.content.pm.PackageManager.MATCH_DISABLED_COMPONENTS
+import android.provider.Settings
 import android.view.Display
 import android.view.IWindowManager
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.TextView
+import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.res.R
 import javax.inject.Inject
 
 class ScreenshotDetectionController
 @Inject
 constructor(
+    @Application private val context: Context,
     private val windowManager: IWindowManager,
     private val packageManager: PackageManager,
 ) {
@@ -41,6 +45,16 @@ constructor(
     fun maybeNotifyOfScreenshot(data: ScreenshotData): List<CharSequence> {
         // No notification for screenshots from overview.
         if (data.source == WindowManager.ScreenshotSource.SCREENSHOT_OVERVIEW) return listOf()
+
+        // The user can disable screenshot detection independently of FLAG_SECURE handling.
+        if (Settings.Secure.getInt(
+                context.contentResolver,
+                Settings.Secure.SCREENSHOT_DETECTION,
+                1,
+            ) == 0
+        ) {
+            return listOf()
+        }
 
         // Notify listeners, retrieve a list of listening components.
         val components = windowManager.notifyScreenshotListeners(Display.DEFAULT_DISPLAY)

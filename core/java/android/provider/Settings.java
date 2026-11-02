@@ -14479,6 +14479,21 @@ public final class Settings {
         public static final String WINDOW_IGNORE_SECURE = "window_ignore_secure";
 
         /**
+         * Whether screenshots should be reported to apps through the screenshot detection API.
+         * @hide
+         */
+        @Readable
+        public static final String SCREENSHOT_DETECTION = "screenshot_detection";
+
+        /**
+         * Whether Wi-Fi and Bluetooth should be turned off after five minutes without a
+         * connection.
+         * @hide
+         */
+        @Readable
+        public static final String IDLE_RADIO_TIMEOUT = "idle_radio_timeout";
+
+        /**
          * These entries are considered common between the personal and the managed profile,
          * since the managed profile doesn't get to change them.
          */

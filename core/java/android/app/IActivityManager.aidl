@@ -79,6 +79,9 @@ import android.service.voice.IVoiceInteractionSession;
 import android.view.RemoteAnimationDefinition;
 import android.view.RemoteAnimationAdapter;
 import com.android.internal.app.IVoiceInteractor;
+import com.android.internal.dexopt.IAxUserStartDexoptStatusHandler;
+import com.android.internal.kernel.AxKernelControl;
+import com.android.internal.kernel.AxKernelMetrics;
 import com.android.internal.os.IResultReceiver;
 import com.android.internal.policy.IKeyguardDismissCallback;
 import java.util.List;
@@ -1071,4 +1074,14 @@ interface IActivityManager {
      * Unregisters the listener previously registered for ANR warning.
      */
     void unregisterAnrWarningListener(in IAnrWarningCallback callback);
+
+    // AxionOS device manager extensions
+    List<AxKernelControl> getAxKernelControls();
+    boolean setAxKernelControlValue(String id, int value);
+    AxKernelMetrics getAxKernelMetrics(long previousCpuActiveTimeTicks,
+            long previousCpuTimeTicks);
+    void connectUserDexopt(IAxUserStartDexoptStatusHandler handler);
+    void disconnectUserDexopt();
+    List<String> getPackagesToBeOptimized();
+    void performUserDexopt();
 }

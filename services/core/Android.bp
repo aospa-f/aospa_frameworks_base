@@ -156,6 +156,8 @@ java_library_static {
         ":memory-limiter-config",
         ":services-sources-telecom",
         ":lmofreeform-display-adapter-java",
+        ":ax_km_server_sources",
+        ":ax_dexopt_server_sources",
         "java/com/android/server/EventLogTags.logtags",
         "java/com/android/server/am/EventLogTags.logtags",
         "java/com/android/server/wm/EventLogTags.logtags",

@@ -29,6 +29,8 @@ filegroup {
         ":systemfeatures-gen-srcs",
         ":framework-network-security-config-sources",
         ":GeneratedPolicyMetadata",
+        ":ax_km_common_sources",
+        ":ax_dexopt_common_sources",
     ],
     // Exactly one MessageQueue.java will be added to srcs by messagequeue-gen
     exclude_srcs: [

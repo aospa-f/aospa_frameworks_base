@@ -3194,6 +3194,7 @@ public class PackageManagerService implements PackageSender, TestUtilityService 
             }
             pkgSetting.getPkgState().setLastPackageUsageTimeInMills(reason, time);
         }
+        AxDexoptManagerImpl.getInstance().notifyPackageUse(packageName, reason);
     }
 
     /*package*/ DexOptHelper getDexOptHelper() {
@@ -4760,6 +4761,8 @@ public class PackageManagerService implements PackageSender, TestUtilityService 
         if (dexUseManager != null) {
             dexUseManager.systemReady();
         }
+
+        AxDexoptManagerImpl.getInstance().systemReady(mContext, this);
 
         PackageMetrics.logInvalidationMetrics();
     }

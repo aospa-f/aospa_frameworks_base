@@ -465,6 +465,15 @@ public abstract class OomAdjuster {
         void onOomAdjustChanged(@OomAdjust int oldAdj, @OomAdjust int newAdj,
                 ProcessRecordInternal appInternal);
 
+        /** Notifies the client component to evaluate background manager launch unfreezing. */
+        default void onAppBackgroundOomAdjChanged(ProcessRecordInternal appInternal) {
+        }
+
+        /** Notifies the client component when an app's scheduling group changes. */
+        default void onAppBackgroundSchedGroupChanged(ProcessRecordInternal appInternal,
+                int oldSchedGroup, int curSchedGroup) {
+        }
+
         /**
          * Notifies the client component to evaluate and apply process freeze state changes.
          *
@@ -2452,6 +2461,8 @@ public abstract class OomAdjuster {
             state.setSetRawAdj(state.getCurRawAdj());
         }
 
+        mCallback.onAppBackgroundOomAdjChanged(state);
+
         // ProcessFreezerManager freezer = ProcessFreezerManager.getInstance();
         // if (freezer != null && freezer.useFreezerManager()) {
         //     // unfreeze process if user press home key before the first frame appeared
@@ -2569,6 +2580,7 @@ public abstract class OomAdjuster {
         } else if (state.getSetSchedGroup() != curSchedGroup) {
             int oldSchedGroup = state.getSetSchedGroup();
             state.setSetSchedGroup(curSchedGroup);
+            mCallback.onAppBackgroundSchedGroupChanged(state, oldSchedGroup, curSchedGroup);
             if (reportDebugMsgs) {
                 String msg = "Setting sched group of " + state.processName
                         + " to " + curSchedGroup + ": " + state.getAdjType();

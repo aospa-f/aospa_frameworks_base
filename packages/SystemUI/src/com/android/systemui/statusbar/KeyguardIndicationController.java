@@ -134,6 +134,9 @@ import dagger.Lazy;
 
 import java.io.PrintWriter;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -231,6 +234,10 @@ public class KeyguardIndicationController {
     private boolean mBatteryDead;
     private boolean mIncompatibleCharger;
     private int mChargingWattage;
+    private int mChargingCurrent;
+    private int mChargingVoltage;
+    private int mTemperature;
+    private int mCurrentDivider;
     private int mBatteryLevel = -1;
     private boolean mBatteryPresent = true;
     protected long mChargingTimeRemaining;
@@ -336,6 +343,7 @@ public class KeyguardIndicationController {
             Lazy<SecureLockDeviceInteractor> secureLockDeviceInteractor
     ) {
         mContext = context;
+        mCurrentDivider = context.getResources().getInteger(R.integer.config_currentInfoDivider);
         mBroadcastDispatcher = broadcastDispatcher;
         mDevicePolicyManager = devicePolicyManager;
         mKeyguardStateController = keyguardStateController;
@@ -1287,14 +1295,49 @@ public class KeyguardIndicationController {
                     : R.string.keyguard_plugged_in;
         }
 
+        String chargingDetails = buildChargingDetails();
         if (hasChargingTime) {
             String chargingTimeFormatted = Formatter.formatShortElapsedTimeRoundingUpToMinutes(
                     mContext, mChargingTimeRemaining);
             return mContext.getResources().getString(chargingId, chargingTimeFormatted,
-                    percentage);
+                    percentage) + chargingDetails;
         } else {
-            return mContext.getResources().getString(chargingId, percentage);
+            return mContext.getResources().getString(chargingId, percentage) + chargingDetails;
         }
+    }
+
+    /**
+     * Builds the detailed charging information shown below the charging indication.
+     *
+     * Based on the lockscreen charging implementation from crDroid, originally by
+     * yank555-lu and nathanchance, squashed by maxwen and updated by Pranav Vashi.
+     */
+    private String buildChargingDetails() {
+        // Keep the always-on display indication compact.
+        if (mDozing) {
+            return "";
+        }
+
+        List<String> details = new ArrayList<>();
+        if (mChargingCurrent > 0) {
+            int currentMa = mChargingCurrent / mCurrentDivider;
+            if (currentMa >= 1000) {
+                details.add(String.format(Locale.US, "%.1f A", currentMa / 1000f));
+            } else {
+                details.add(String.format(Locale.US, "%d mA", currentMa));
+            }
+        }
+        if (mChargingWattage > 0) {
+            details.add(String.format(Locale.US, "%.1f W", mChargingWattage / 1000000f));
+        }
+        if (mChargingVoltage > 0) {
+            details.add(String.format(Locale.US, "%.1f V", mChargingVoltage / 1000000f));
+        }
+        if (mTemperature > 0) {
+            details.add(String.format(Locale.US, "%.1f°C", mTemperature / 10f));
+        }
+
+        return details.isEmpty() ? "" : "\n" + TextUtils.join(" · ", details);
     }
 
     public void setStatusBarKeyguardViewManager(
@@ -1382,6 +1425,9 @@ public class KeyguardIndicationController {
         pw.println("  mPowerCharged: " + mPowerCharged);
         pw.println("  mChargingSpeed: " + mChargingSpeed);
         pw.println("  mChargingWattage: " + mChargingWattage);
+        pw.println("  mChargingCurrent: " + mChargingCurrent);
+        pw.println("  mChargingVoltage: " + mChargingVoltage);
+        pw.println("  mTemperature: " + mTemperature);
         pw.println("  mChargingStatus: " + mChargingStatus);
         pw.println("  mMessageToShowOnScreenOn: " + mBiometricErrorMessageToShowOnScreenOn);
         pw.println("  mDozing: " + mDozing);
@@ -1439,6 +1485,9 @@ public class KeyguardIndicationController {
             mPowerPluggedIn = isPowerPluggedIn(status, isChargingOrFull);
             mPowerCharged = status.isCharged();
             mChargingWattage = status.maxChargingWattage;
+            mChargingCurrent = status.maxChargingCurrent;
+            mChargingVoltage = status.maxChargingVoltage;
+            mTemperature = status.temperature;
             mChargingSpeed = status.getChargingSpeed(mContext);
             mChargingStatus = status.chargingStatus;
             mBatteryLevel = status.level;

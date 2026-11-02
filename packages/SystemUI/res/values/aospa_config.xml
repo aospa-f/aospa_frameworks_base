@@ -65,4 +65,7 @@
     <!-- Interval between subsequent shifting of status bar contents, in seconds -->
     <integer name="config_systemBarBurnInProtectionShiftInterval">60</integer>
 
+    <!-- Divider for charging current details on the lockscreen -->
+    <integer name="config_currentInfoDivider" translatable="false">1000</integer>
+
 </resources>

@@ -497,6 +497,9 @@ import com.android.internal.os.SomeArgs;
 import com.android.internal.os.TimeoutRecord;
 import com.android.internal.os.TransferPipe;
 import com.android.internal.os.Zygote;
+import com.android.internal.dexopt.IAxUserStartDexoptStatusHandler;
+import com.android.internal.kernel.AxKernelControl;
+import com.android.internal.kernel.AxKernelMetrics;
 import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
 import com.android.internal.policy.AttributeCache;
 import com.android.internal.util.ArrayUtils;
@@ -540,8 +543,10 @@ import com.android.server.criticalevents.CriticalEventLog;
 import com.android.server.firewall.IntentFirewall;
 import com.android.server.graphics.fonts.FontManagerInternal;
 import com.android.server.job.JobSchedulerInternal;
+import com.android.server.kernel.AxKernelManagerService;
 import com.android.server.net.NetworkManagementInternal;
 import com.android.server.os.NativeTombstoneManager;
+import com.android.server.pm.AxDexoptManagerImpl;
 import com.android.server.pm.Installer;
 import com.android.server.pm.SaferIntentUtils;
 import com.android.server.pm.UserManagerInternal;
@@ -764,6 +769,8 @@ public class ActivityManagerService extends IActivityManager.Stub
 
     /** Service for optimizing resource usage from background apps. */
     private CachedAppOptimizer mCachedAppOptimizer;
+    private AppBackgroundManager mAppBackgroundManager;
+    private AxKernelManagerService mAxKernelManager;
     OomAdjuster mOomAdjuster;
     @GuardedBy("this")
     ProcessStateController mProcessStateController;
@@ -2641,6 +2648,8 @@ public class ActivityManagerService extends IActivityManager.Stub
         mPhantomProcessList = new PhantomProcessList(this);
 
         mCachedAppOptimizer = new CachedAppOptimizer(this);
+        mAppBackgroundManager = new AppBackgroundManager(this);
+        mAxKernelManager = AxKernelManagerService.getInstance(mContext);
         mProcessStateController = new ProcessStateController
                 .Builder(mProcessList, activeUids, oomConstants, new OomAdjusterCallback())
                 .setHandlerThread(handlerThread)
@@ -2718,6 +2727,8 @@ public class ActivityManagerService extends IActivityManager.Stub
         mPhantomProcessList = new PhantomProcessList(this);
         final Looper activityTaskLooper = DisplayThread.get().getLooper();
         mCachedAppOptimizer = new CachedAppOptimizer(this);
+        mAppBackgroundManager = new AppBackgroundManager(this);
+        mAxKernelManager = AxKernelManagerService.getInstance(mContext);
         mProcessStateController = new ProcessStateController
                 .Builder(mProcessList, activeUids, oomConstants, new OomAdjusterCallback())
                 .setLockObject(this)
@@ -9834,6 +9845,12 @@ public class ActivityManagerService extends IActivityManager.Stub
             // Make sure we have the current profile info, since it is needed for security checks.
             mUserController.onSystemReady();
             mAppOpsService.systemReady();
+            t.traceBegin("AxKernelManager.systemReady");
+            mAxKernelManager.systemReady();
+            t.traceEnd();
+            t.traceBegin("AppBackgroundManager.systemReady");
+            mAppBackgroundManager.systemReady();
+            t.traceEnd();
             mProcessList.onSystemReady();
             mAppRestrictionController.onSystemReady();
             mMemoryLimiter.onSystemReady();
@@ -11349,6 +11366,7 @@ public class ActivityManagerService extends IActivityManager.Stub
         synchronized(this) {
             mConstants.dump(pw);
             mCachedAppOptimizer.dump(pw);
+            mAppBackgroundManager.dump(pw);
             pw.println();
             if (dumpAll) {
                 pw.println(
@@ -20574,6 +20592,20 @@ public class ActivityManagerService extends IActivityManager.Stub
         }
 
         @Override
+        @GuardedBy({"ActivityManagerService.this", "ActivityManagerService.this.mProcLock"})
+        public void onAppBackgroundOomAdjChanged(ProcessRecordInternal appInternal) {
+            mAppBackgroundManager.onOomAdjChanged((ProcessRecord) appInternal);
+        }
+
+        @Override
+        @GuardedBy({"ActivityManagerService.this", "ActivityManagerService.this.mProcLock"})
+        public void onAppBackgroundSchedGroupChanged(ProcessRecordInternal appInternal,
+                int oldSchedGroup, int curSchedGroup) {
+            mAppBackgroundManager.onProcessSchedulingGroupChanged((ProcessRecord) appInternal,
+                    oldSchedGroup, curSchedGroup);
+        }
+
+        @Override
         public void onProcessFreezabilityChanged(ProcessRecordInternal app, boolean freezePolicy,
                 @OomAdjReason int oomAdjReason, boolean immediate, @OomAdjust int oldOomAdj,
                 @OomAdjust int newOomAdj) {
@@ -21501,6 +21533,46 @@ public class ActivityManagerService extends IActivityManager.Stub
     @Override
     public void unregisterAnrWarningListener(IAnrWarningCallback callback) {
         mAnrWarningController.unregisterAnrWarningListener(Binder.getCallingUid(), callback);
+    }
+
+    AppBackgroundManager getAppBackgroundManager() {
+        return mAppBackgroundManager;
+    }
+
+    @Override
+    public List<AxKernelControl> getAxKernelControls() {
+        return mAxKernelManager.getControls();
+    }
+
+    @Override
+    public boolean setAxKernelControlValue(String id, int value) {
+        return mAxKernelManager.setControlValue(id, value);
+    }
+
+    @Override
+    public AxKernelMetrics getAxKernelMetrics(
+            long previousCpuActiveTimeTicks, long previousCpuTimeTicks) {
+        return mAxKernelManager.getMetrics(previousCpuActiveTimeTicks, previousCpuTimeTicks);
+    }
+
+    @Override
+    public void connectUserDexopt(IAxUserStartDexoptStatusHandler handler) {
+        AxDexoptManagerImpl.getInstance().connectUserDexopt(handler);
+    }
+
+    @Override
+    public void disconnectUserDexopt() {
+        AxDexoptManagerImpl.getInstance().disconnectUserDexopt();
+    }
+
+    @Override
+    public List<String> getPackagesToBeOptimized() {
+        return AxDexoptManagerImpl.getInstance().getPackagesToBeOptimized();
+    }
+
+    @Override
+    public void performUserDexopt() {
+        AxDexoptManagerImpl.getInstance().performUserDexopt();
     }
 
     /** Notifies the app about a potential ANR. */

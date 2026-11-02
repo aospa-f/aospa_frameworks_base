@@ -2871,6 +2871,13 @@ public final class ProcessList extends ProcessListInternal
             int zygotePolicyFlags, boolean allowWhileBooting, boolean isolated, int isolatedUid,
             boolean isSdkSandbox, int sdkSandboxUid, String sdkSandboxClientAppPackage,
             String abiOverride, String entryPoint, String[] entryPointArgs, Runnable crashHandler) {
+        final AppBackgroundManager appBackgroundManager = mService.getAppBackgroundManager();
+        if (appBackgroundManager != null && appBackgroundManager.shouldPreventProcessStart(
+                processName, info, intentFlags, hostingRecord, allowWhileBooting, isolated,
+                isSdkSandbox)) {
+            return null;
+        }
+
         if (QtiBackgroundManager.getInstance().shouldPreventProcessStart(processName, info)) {
                 return null;
         }

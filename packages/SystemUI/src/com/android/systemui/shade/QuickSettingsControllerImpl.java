@@ -624,7 +624,6 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
         final float x = event.getX();
         boolean showQsOverride = separateShade
                 && mAxQsShadePolicy.isSeparateQuickPanelGesture(x, w);
-        showQsOverride &= mBarState == StatusBarState.SHADE;
 
         return twoFingerDrag || showQsOverride || stylusButtonClickDrag || mouseButtonClickDrag;
     }
@@ -714,31 +713,30 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
             return false;
         }
         boolean keyguardShowing = mBarState == KEYGUARD;
-        final boolean separateKeyguardQsSide = mAxQsShadePolicy.isSeparateShade()
-                && keyguardShowing
-                && mShadeExpandedFraction < 1f
+        final boolean separateShade = mAxQsShadePolicy.isSeparateShade();
+        final boolean separateQsSide = separateShade
                 && mAxQsShadePolicy.isSeparateQuickPanelGesture(
                         x, mPanelView.getMeasuredWidth());
-        if (!isExpansionEnabled() || (mCollapsedOnDown && !separateKeyguardQsSide)
-                || (keyguardShowing
-                && mKeyguardBypassController.getBypassEnabled() && !Flags.expandQsBypassEnabled())
-                || mSplitShadeEnabled) {
+        if (!isExpansionEnabled() || mSplitShadeEnabled) {
             return false;
         }
-        if (separateKeyguardQsSide) {
-            // On the lockscreen, split the drag-down gesture the same way as the home screen:
-            // the quick panel half opens QS, the other half opens notifications.
+        if (!separateQsSide && (mCollapsedOnDown || (keyguardShowing
+                && mKeyguardBypassController.getBypassEnabled() && !Flags.expandQsBypassEnabled()))) {
+            return false;
+        }
+        if (separateShade && !separateQsSide && y > mStatusBarMinHeight) {
+            // In separate mode QS is opened from its own half, not by dragging
+            // down the notification side.
+            return false;
+        }
+        if (getExpanded() && yDiff < 0 && separateShade) {
+            return false;
+        }
+        if (separateQsSide && !getExpanded() && mShadeExpandedFraction < 1f) {
+            // The QS half owns the whole downward pull while the shade is collapsed or
+            // animating. Once the notification page is fully open, normal notification
+            // interaction (taps and scrolling) must keep working.
             return true;
-        }
-        if (mAxQsShadePolicy.isSeparateShade()) {
-            // In separate mode QS is opened from the status-bar edge, not by dragging
-            // down the notification page.
-            if (y > mStatusBarMinHeight) {
-                return false;
-            }
-        }
-        if (getExpanded() && yDiff < 0 && mAxQsShadePolicy.isSeparateShade()) {
-            return false;
         }
         int headerTop, headerBottom;
         if (keyguardShowing || mQs == null) {
@@ -1697,11 +1695,6 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
             return false;
         }
         boolean isInStatusBar = event.getY(event.getActionIndex()) < mStatusBarMinHeight;
-        final boolean separateKeyguardQsSide = mAxQsShadePolicy.isSeparateShade()
-                && mBarState == KEYGUARD
-                && mShadeExpandedFraction < 1f
-                && mAxQsShadePolicy.isSeparateQuickPanelGesture(
-                        event.getX(), mPanelView.getMeasuredWidth());
         if (isInStatusBar) {
             if (Flags.statusBarLongPressGestureDetectorPerDisplay()) {
                 int shadeDisplayId = mShadeDisplaysInteractorLazy.get().getDisplayId().getValue();
@@ -1750,15 +1743,34 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
                 return true;
             }
         }
+        if (action == MotionEvent.ACTION_DOWN && isExpansionEnabled()
+                && mShadeExpandedFraction < 1f && !isOpenQsEvent(event)
+                && isExpandImmediate()) {
+            // A previous QS gesture can leave the immediate-expansion latch set. Any fresh
+            // gesture on the notification side must start from the notification page.
+            setExpandImmediate(false);
+        }
+        if (action == MotionEvent.ACTION_DOWN && isExpansionEnabled()
+                && mAxQsShadePolicy.isSeparateShade() && mShadeExpandedFraction < 1f
+                && mAxQsShadePolicy.isSeparateQuickPanelGesture(
+                        event.getX(), mPanelView.getMeasuredWidth())) {
+            // The QS half owns the pull even when a previous shade is still collapsing.
+            // Without this, a fast follow-up pull lands on the notification page.
+            setExpandImmediate(true);
+        }
         if (action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_UP) {
             mConflictingExpansionGesture = false;
             resetEarlyExpansion();
+            if (isFullyCollapsed && isExpandImmediate()) {
+                // Taps on the QS half must not leave QS latched for the next gesture.
+                setExpandImmediate(false);
+            }
         }
         if (action == MotionEvent.ACTION_DOWN && isFullyCollapsed && isExpansionEnabled()) {
             mTwoFingerExpandPossible = true;
         }
-        if (mTwoFingerExpandPossible && (isOpenQsEvent(event) || separateKeyguardQsSide)
-                && (isFullyCollapsed || isInStatusBar || separateKeyguardQsSide)) {
+        if (mTwoFingerExpandPossible && isOpenQsEvent(event)
+                && (isFullyCollapsed || isInStatusBar)) {
             mMetricsLogger.count(COUNTER_PANEL_OPEN_QS, 1);
             setExpandImmediate(true);
             mNotificationStackScrollLayoutController.setShouldShowShelfOnly(!mSplitShadeEnabled);
@@ -1989,12 +2001,37 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
         return mAxQsShadePolicy.isSeparateShade();
     }
 
+    /** Opens the separate QS page while keeping the notification shade expanded. */
+    void expandSeparateQsPage() {
+        if (getExpanded() || !mAxQsShadePolicy.isSeparateShade()) {
+            return;
+        }
+        setExpandImmediate(false);
+        if (mExpansionAnimator != null) {
+            mExpansionAnimator.cancel();
+        }
+        onExpansionStarted();
+        // Mark QS expanded before measuring, so the panel takes the QS-expanded height (the
+        // same state the system's expand-settings path produces). Without this the panel keeps
+        // the notification-page height and collapses when the QS page is closed.
+        setExpanded(true);
+        mPanelViewControllerLazy.get().updateExpandedHeightToMaxHeight();
+        flingQs(0 /* vel */, FLING_EXPAND, null /* onFinishRunnable */, true /* isClick */);
+    }
+
     /** Closes the separate QS page back to the notification page. */
     void collapseSeparateQsPage() {
         if (!getExpanded() || !mAxQsShadePolicy.isSeparateShade()) {
             return;
         }
-        animateCloseQs(false /* animateAway */);
+        cancelExpansionAnimation();
+        setExpandImmediate(false);
+        if (getExpansionHeight() <= getMinExpansionHeight()) {
+            // The QS page is driven by isQsExpanded, not by the stock expansion height.
+            setExpanded(false);
+        } else {
+            animateCloseQs(false /* animateAway */);
+        }
     }
 
     private void cancelExpansionAnimation() {

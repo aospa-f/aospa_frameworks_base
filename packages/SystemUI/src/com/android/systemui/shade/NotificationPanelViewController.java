@@ -3336,6 +3336,11 @@ public final class NotificationPanelViewController implements
     }
 
     @Override
+    public boolean handleSeparatePageSwipe(MotionEvent event) {
+        return mTouchHandler.handleSeparatePageSwipe(event);
+    }
+
+    @Override
     public void updateTouchableRegion() {
         //A layout will ensure that onComputeInternalInsets will be called and after that we can
         // resize the layout. Make sure that the window stays small for one frame until the
@@ -3829,10 +3834,19 @@ public final class NotificationPanelViewController implements
                     float dx = event.getX() - mSeparatePageSwipeDownX;
                     float dy = event.getY() - mSeparatePageSwipeDownY;
                     float slop = getTouchSlop(event) * 2f;
-                    if (Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy) * 1.5f) {
+                    if (mQsController.getExpanded()
+                            && mBarState != StatusBarState.SHADE
+                            && dy < -slop
+                            && Math.abs(dy) > Math.abs(dx) * 1.5f) {
+                        // On the lock screen, swiping up over the QS page returns to the
+                        // notification page instead of dismissing the keyguard.
+                        mSeparatePageSwipeTriggered = true;
+                        mQsController.collapseSeparateQsPage();
+                    } else if (Math.abs(dx) > slop
+                            && Math.abs(dx) > Math.abs(dy) * 1.5f) {
                         if (!mQsController.getExpanded() && dx < 0) {
                             mSeparatePageSwipeTriggered = true;
-                            expandToQs();
+                            mQsController.expandSeparateQsPage();
                         } else if (mQsController.getExpanded() && dx > 0) {
                             mSeparatePageSwipeTriggered = true;
                             mQsController.collapseSeparateQsPage();
@@ -3884,6 +3898,19 @@ public final class NotificationPanelViewController implements
             if (mCentralSurfaces.isBouncerShowing()) {
                 mShadeLog.v("NotificationPanelViewController MotionEvent intercepted: "
                         + "bouncer is showing");
+                return true;
+            }
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN
+                    && mStatusBarStateController.getState() == StatusBarState.KEYGUARD
+                    && mExpandedFraction < 1f
+                    && event.getY() < mView.getHeight() * 0.5f
+                    && mQsController.shouldQuickSettingsIntercept(
+                            event.getX(), event.getY(), 0, event)) {
+                // On the keyguard the shade window must claim the QS-side pull up front,
+                // otherwise the pulse-expansion handler or the keyguard drag handler would
+                // expand the notification page instead.
+                mShadeLog.logMotionEvent(event,
+                        "NPVC intercepted keyguard QS-side pull");
                 return true;
             }
             if (mCommandQueue.panelsEnabled()

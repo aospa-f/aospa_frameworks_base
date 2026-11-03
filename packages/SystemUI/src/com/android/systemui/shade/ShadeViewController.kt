@@ -72,6 +72,12 @@ interface ShadeViewController {
     fun handleExternalInterceptTouch(event: MotionEvent): Boolean
 
     /**
+     * Handles a separate-mode horizontal page swipe before the event is dispatched to the
+     * shade children, so views that disallow intercepting touches cannot swallow it.
+     */
+    fun handleSeparatePageSwipe(event: MotionEvent): Boolean = false
+
+    /**
      * Triggered when an input focus transfer gesture has started.
      *
      * Used to dispatch initial touch events before crossing the threshold to pull down the

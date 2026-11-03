@@ -35,6 +35,8 @@ open class ShadeViewControllerEmptyImpl @Inject constructor() :
     PanelExpansionInteractor {
     @Deprecated("Use ShadeInteractor instead") override fun expandToNotifications() {}
 
+    override fun expandToQs() {}
+
     @Deprecated("Use ShadeInteractor instead") override val isExpanded: Boolean = false
     override val isPanelExpanded: Boolean = false
 

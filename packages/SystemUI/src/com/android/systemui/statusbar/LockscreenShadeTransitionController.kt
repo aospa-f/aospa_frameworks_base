@@ -4,6 +4,7 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
+import android.provider.Settings
 import android.content.res.Configuration
 import android.util.IndentingPrintWriter
 import android.util.MathUtils
@@ -326,6 +327,15 @@ constructor(
             nsslController.isInLockedDownShade()) && (isQsFullyCollapsed || useSplitShade)
     }
 
+    private fun opensSeparateQsPage(): Boolean {
+        if (shadeModeInteractor.isSplitShade) {
+            return false
+        }
+        return Settings.Secure.getInt(
+            context.contentResolver, "ax_qs_panel_mode", 0
+        ) == 1
+    }
+
     /** Called by the touch helper when when a gesture has completed all the way and released. */
     internal fun onDraggedDown(startingChild: View?, dragLengthY: Int) {
         if (canDragDown(startingChild)) {
@@ -346,6 +356,7 @@ constructor(
                 )
             } else {
                 logger.logDraggedDown(startingChild, dragLengthY)
+                val opensQsPage = opensSeparateQsPage()
                 if (!ambientState.isDozing() || startingChild != null) {
                     // go to locked shade while animating the drag down amount from its current
                     // value
@@ -356,6 +367,9 @@ constructor(
                             )
                         }
                         shadeLockscreenInteractorLazy.get().transitionToExpandedShade(delay)
+                        if (opensQsPage) {
+                            shadeLockscreenInteractorLazy.get().expandToQs()
+                        }
                         callbacks.forEach {
                             it.setTransitionToFullShadeAmount(0f, /* animated= */ true, delay)
                         }
@@ -796,6 +810,8 @@ class DragDownHelper(
     private var minDragDistance = 0
     private var initialTouchX = 0f
     private var initialTouchY = 0f
+    var downX = 0f
+        private set
     private var touchSlop = 0f
     private var slopMultiplier = 0f
     private var draggedFarEnough = false
@@ -846,6 +862,7 @@ class DragDownHelper(
                 initialShadeLockdown = false
                 initialTouchY = y
                 initialTouchX = x
+                downX = x
             }
 
             MotionEvent.ACTION_MOVE -> {

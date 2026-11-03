@@ -152,6 +152,8 @@ public class NotificationShadeWindowViewController implements Dumpable {
     private boolean mExpandingBelowNotch;
     private final DockManager mDockManager;
     private final ShadeViewController mShadeViewController;
+    private boolean mSeparatePageGestureConsuming;
+    private boolean mSeparatePageCancelDispatch;
     private final PanelExpansionInteractor mPanelExpansionInteractor;
     private final ShadeExpansionStateManager mShadeExpansionStateManager;
 
@@ -394,6 +396,21 @@ public class NotificationShadeWindowViewController implements Dumpable {
 
             @Override
             public Boolean handleDispatchTouchEvent(MotionEvent ev) {
+                if (mSeparatePageGestureConsuming && !mSeparatePageCancelDispatch) {
+                    if (ev.getActionMasked() == MotionEvent.ACTION_UP
+                            || ev.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                        mSeparatePageGestureConsuming = false;
+                        mService.setInteracting(StatusBarManager.WINDOW_STATUS_BAR, false);
+                    }
+                    return true;
+                }
+                if (!mSeparatePageCancelDispatch
+                        && ev.getActionMasked() != MotionEvent.ACTION_UP
+                        && ev.getActionMasked() != MotionEvent.ACTION_CANCEL
+                        && mShadeViewController.handleSeparatePageSwipe(ev)) {
+                    mSeparatePageGestureConsuming = true;
+                    return true;
+                }
                 PhoneStatusBarViewController phoneStatusBarViewController =
                         statusBarViewController();
                 if (phoneStatusBarViewController == null) { // Fix for b/192490822
@@ -626,6 +643,10 @@ public class NotificationShadeWindowViewController implements Dumpable {
                     handled |= mDragDownHelper.onTouchEvent(ev) || handled;
                 }
                 if (!handled && mShadeViewController.handleExternalTouch(ev)) {
+                    if (ev.getActionMasked() == MotionEvent.ACTION_UP
+                            || ev.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                        mService.setInteracting(StatusBarManager.WINDOW_STATUS_BAR, false);
+                    }
                     return true;
                 }
                 return handled;

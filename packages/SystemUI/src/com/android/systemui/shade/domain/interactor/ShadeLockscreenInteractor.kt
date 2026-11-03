@@ -32,6 +32,9 @@ interface ShadeLockscreenInteractor {
      */
     @Deprecated("Use ShadeInteractor instead") fun expandToNotifications()
 
+    /** Opens the QS page after the locked shade is shown. */
+    fun expandToQs()
+
     /**
      * Returns whether the shade height is greater than zero (i.e. partially or fully expanded),
      * there is a HUN, the shade is animating, or the shade is instantly expanding.

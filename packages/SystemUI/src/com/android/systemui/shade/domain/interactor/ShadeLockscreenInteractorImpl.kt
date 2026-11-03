@@ -50,6 +50,12 @@ constructor(
         )
     }
 
+    override fun expandToQs() {
+        shadeInteractor.expandQuickSettingsShade(
+            loggingReason = "ShadeLockscreenInteractorImpl.expandToQs"
+        )
+    }
+
     @Deprecated("Use ShadeInteractor instead")
     override val isExpanded
         get() = shadeInteractor.isAnyExpanded.value

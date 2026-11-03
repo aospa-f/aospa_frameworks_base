@@ -55,6 +55,7 @@ import com.android.systemui.media.remedia.ui.viewmodel.MediaCarouselVisibility
 import com.android.systemui.media.remedia.ui.viewmodel.MediaFalsingSystem
 import com.android.systemui.media.remedia.ui.viewmodel.MediaViewModel
 import com.android.systemui.plugins.statusbar.StatusBarStateController
+import com.android.systemui.qs.ax.domain.AxQsMediaPolicy
 import com.android.systemui.res.R
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
@@ -428,6 +429,11 @@ constructor(
     }
 
     private fun showMediaPlayer() {
+        if (!AxQsMediaPolicy.useStockQsMediaHost
+                && statusBarStateController.state == StatusBarState.SHADE) {
+            hideMediaPlayer()
+            return
+        }
         if (useSplitShade) {
             setVisibility(splitShadeContainer, View.VISIBLE)
             setVisibility(singlePaneContainer, View.GONE)

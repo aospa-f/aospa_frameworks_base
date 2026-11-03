@@ -72,6 +72,16 @@ import android.view.ViewConfiguration;
 import android.view.WindowManager;
 import android.view.WindowManagerGlobal;
 import android.window.BackEvent;
+import android.widget.TextView;
+import android.view.View;
+import android.view.Gravity;
+import android.provider.Settings;
+import android.os.UserHandle;
+import android.os.Looper;
+import android.media.AudioManager;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.Typeface;
+import android.app.StatusBarManager;
 
 import androidx.annotation.DimenRes;
 
@@ -213,6 +223,38 @@ public class EdgeBackGestureHandler {
     private final Optional<Pip> mPipOptional;
     private final Optional<DesktopMode> mDesktopModeOptional;
     private final FalsingManager mFalsingManager;
+
+    private static final float AX_EDGE_PANEL_ZONE_END = 0.32f;
+    private static final float AX_EDGE_VOLUME_ZONE_START = 0.34f;
+    private static final float AX_EDGE_VOLUME_ZONE_END = 0.82f;
+    private static final int AX_EDGE_VOLUME_STEP_DP = 24;
+    private static final int AX_EDGE_PANEL_SWIPE_DP = 40;
+
+    private final AudioManager mAxAudioManager;
+    private final StatusBarManager mAxStatusBarManager;
+    private final Handler mAxMainHandler = new Handler(Looper.getMainLooper());
+    private TextView mAxVolumeBubble;
+    private WindowManager.LayoutParams mAxVolumeBubbleLp;
+    private boolean mAxVolumeBubbleOnLeft;
+    private boolean mAxEdgeTracking;
+    private boolean mAxEdgeActive;
+    private boolean mAxEdgeIsVolume;
+    private boolean mAxEdgeOnLeft;
+    private boolean mAxEdgePanelAllowed;
+    private boolean mAxEdgeVolumeAllowed;
+    private boolean mAxEdgePanelTriggered;
+    private float mAxEdgeDownX;
+    private float mAxEdgeDownY;
+    private int mAxVolumeStep;
+    private final Runnable mAxHideBubbleRunnable = () -> {
+        if (mAxVolumeBubble != null) {
+            mAxVolumeBubble.animate().alpha(0f).setDuration(180).withEndAction(() -> {
+                if (mAxVolumeBubble != null) {
+                    mAxVolumeBubble.setVisibility(View.GONE);
+                }
+            });
+        }
+    };
     private final Configuration mLastReportedConfig = new Configuration();
 
     private final Point mDisplaySize = new Point();
@@ -483,6 +525,8 @@ public class EdgeBackGestureHandler {
         mBackPanelControllerFactory = backPanelControllerFactory;
         mViewConfiguration = viewConfiguration;
         mDefaultWindowManager = windowManager;
+        mAxAudioManager = context.getSystemService(AudioManager.class);
+        mAxStatusBarManager = context.getSystemService(StatusBarManager.class);
         mWindowManagerService = windowManagerService;
         mInputManager = inputManager;
         mPipOptional = pipOptional;
@@ -1097,7 +1141,206 @@ public class EdgeBackGestureHandler {
                         : SysUiStatsLog.BACK_GESTURE__INPUT_TYPE__TOUCH);
     }
 
+    private boolean handleAxEdgeGesture(MotionEvent ev) {
+        final int action = ev.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            mAxEdgeTracking = false;
+            mAxEdgeActive = false;
+            mAxEdgeIsVolume = false;
+            mAxEdgePanelTriggered = false;
+            mAxVolumeStep = 0;
+
+            if (mUsingThreeButtonNav || !mIsEnabled || mDisplaySize.x <= 0) {
+                return false;
+            }
+
+            final float x = ev.getX();
+            final float y = ev.getY();
+            final float edgeSlop = axDp(8);
+            final boolean onLeft = x <= mEdgeWidthLeft + mLeftInset + edgeSlop;
+            final boolean onRight =
+                    x >= mDisplaySize.x - (mEdgeWidthRight + mRightInset + edgeSlop);
+            if (!onLeft && !onRight) {
+                return false;
+            }
+
+            mAxEdgeOnLeft = onLeft;
+            mAxEdgePanelAllowed = isAxEdgeSettingEnabled("ax_edge_panel_enabled")
+                    && !isAxEdgeAppBlocked("ax_edge_panel_blocked_apps");
+            mAxEdgeVolumeAllowed = isAxEdgeSettingEnabled("ax_edge_volume_enabled")
+                    && !isAxEdgeAppBlocked("ax_edge_volume_blocked_apps");
+            if (!mAxEdgePanelAllowed && !mAxEdgeVolumeAllowed) {
+                return false;
+            }
+            mAxEdgeTracking = true;
+            mAxEdgeDownX = x;
+            mAxEdgeDownY = y;
+            return false;
+        }
+
+        if (!mAxEdgeTracking && !mAxEdgeActive) {
+            return false;
+        }
+
+        if (action == MotionEvent.ACTION_MOVE) {
+            final float dx = ev.getX() - mAxEdgeDownX;
+            final float dy = ev.getY() - mAxEdgeDownY;
+            if (!mAxEdgeActive) {
+                final float slop = Math.max(mTouchSlop * 2f, axDp(12));
+                if (Math.abs(dy) <= slop || Math.abs(dy) <= Math.abs(dx) * 1.5f) {
+                    return false;
+                }
+                final float zone = mAxEdgeDownY / mDisplaySize.y;
+                if (dy > 0 && zone < AX_EDGE_PANEL_ZONE_END && mAxEdgePanelAllowed) {
+                    mAxEdgeActive = true;
+                    mAxEdgeIsVolume = false;
+                    axPilferEdgeGesture(ev);
+                } else if (zone > AX_EDGE_VOLUME_ZONE_START
+                        && zone < AX_EDGE_VOLUME_ZONE_END
+                        && mAxEdgeVolumeAllowed) {
+                    mAxEdgeActive = true;
+                    mAxEdgeIsVolume = true;
+                    axPilferEdgeGesture(ev);
+                    axShowVolumeBubble(axVolumePercent(), mAxEdgeOnLeft);
+                } else {
+                    return false;
+                }
+            }
+
+            if (mAxEdgeIsVolume) {
+                final int stepPx = axDp(AX_EDGE_VOLUME_STEP_DP);
+                final int newStep = (int) (dy / stepPx);
+                if (newStep != mAxVolumeStep) {
+                    // Sliding up gives a smaller step value, which must raise the volume.
+                    final int direction = newStep < mAxVolumeStep
+                            ? AudioManager.ADJUST_RAISE : AudioManager.ADJUST_LOWER;
+                    final int steps = Math.abs(newStep - mAxVolumeStep);
+                    for (int i = 0; i < steps; i++) {
+                        mAxAudioManager.adjustStreamVolume(
+                                AudioManager.STREAM_MUSIC, direction, 0);
+                    }
+                    mAxVolumeStep = newStep;
+                    axShowVolumeBubble(axVolumePercent(), mAxEdgeOnLeft);
+                }
+            } else if (!mAxEdgePanelTriggered && dy > axDp(AX_EDGE_PANEL_SWIPE_DP)) {
+                // Remember the panel request and fire it on lift. Expanding the shade while
+                // the finger is still down makes the shade window touchable mid-gesture,
+                // which can cancel or redirect the expand request.
+                mAxEdgePanelTriggered = true;
+            }
+            return true;
+        }
+
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            final boolean handled = mAxEdgeActive;
+            if (mAxEdgePanelTriggered && !mAxEdgeIsVolume
+                    && action == MotionEvent.ACTION_UP && mAxStatusBarManager != null) {
+                if (mAxEdgeOnLeft) {
+                    mAxStatusBarManager.expandNotificationsPanel();
+                } else {
+                    mAxStatusBarManager.expandSettingsPanel(null);
+                }
+            }
+            if (handled) {
+                mAxMainHandler.removeCallbacks(mAxHideBubbleRunnable);
+                mAxMainHandler.postDelayed(mAxHideBubbleRunnable, 650);
+            }
+            mAxEdgeTracking = false;
+            mAxEdgeActive = false;
+            mAxEdgeIsVolume = false;
+            mAxEdgePanelTriggered = false;
+            return handled;
+        }
+        return mAxEdgeActive;
+    }
+
+    private void axPilferEdgeGesture(MotionEvent ev) {
+        final DisplayBackGestureHandler handler =
+                mDisplayBackGestureHandlers.get(ev.getDisplayId());
+        if (handler != null) {
+            MotionEvent cancel = MotionEvent.obtain(ev);
+            cancel.setAction(MotionEvent.ACTION_CANCEL);
+            handler.onMotionEvent(cancel);
+            cancel.recycle();
+        }
+        pilferPointers(ev.getDisplayId());
+    }
+
+    private boolean isAxEdgeSettingEnabled(String key) {
+        return Settings.Secure.getIntForUser(
+                mContext.getContentResolver(), key, 1, UserHandle.USER_CURRENT) != 0;
+    }
+
+    private boolean isAxEdgeAppBlocked(String key) {
+        final String blocked = Settings.Secure.getStringForUser(
+                mContext.getContentResolver(), key, UserHandle.USER_CURRENT);
+        return blocked != null && !blocked.isEmpty() && mPackageName != null
+                && ("," + blocked + ",").contains("," + mPackageName + ",");
+    }
+
+    private int axVolumePercent() {
+        final int max = mAxAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        final int current = mAxAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+        return max <= 0 ? 0 : Math.round(current * 100f / max);
+    }
+
+    private int axDp(int dp) {
+        return (int) (dp * mContext.getResources().getDisplayMetrics().density);
+    }
+
+    private void axShowVolumeBubble(int percent, boolean left) {
+        if (mAxVolumeBubble == null) {
+            final TextView bubble = new TextView(mContext);
+            bubble.setGravity(Gravity.CENTER);
+            bubble.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+            bubble.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            final GradientDrawable shape = new GradientDrawable();
+            shape.setShape(GradientDrawable.OVAL);
+            shape.setColor(mContext.getColor(com.android.internal.R.color.system_accent1_100));
+            bubble.setBackground(shape);
+            bubble.setTextColor(
+                    mContext.getColor(com.android.internal.R.color.system_accent1_10));
+            bubble.setElevation(axDp(8));
+            final WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
+                    axDp(56), axDp(56),
+                    WindowManager.LayoutParams.TYPE_VOLUME_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                            | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                            | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                            | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    PixelFormat.TRANSLUCENT);
+            lp.gravity = (left ? Gravity.LEFT : Gravity.RIGHT) | Gravity.CENTER_VERTICAL;
+            lp.x = axDp(10);
+            try {
+                mDefaultWindowManager.addView(bubble, lp);
+            } catch (RuntimeException e) {
+                Log.w(TAG, "Unable to add edge volume bubble", e);
+                return;
+            }
+            mAxVolumeBubble = bubble;
+            mAxVolumeBubbleLp = lp;
+            mAxVolumeBubbleOnLeft = left;
+        } else if (mAxVolumeBubbleOnLeft != left && mAxVolumeBubbleLp != null) {
+            mAxVolumeBubbleOnLeft = left;
+            mAxVolumeBubbleLp.gravity =
+                    (left ? Gravity.LEFT : Gravity.RIGHT) | Gravity.CENTER_VERTICAL;
+            try {
+                mDefaultWindowManager.updateViewLayout(mAxVolumeBubble, mAxVolumeBubbleLp);
+            } catch (RuntimeException e) {
+                Log.w(TAG, "Unable to move edge volume bubble", e);
+            }
+        }
+        mAxMainHandler.removeCallbacks(mAxHideBubbleRunnable);
+        mAxVolumeBubble.animate().cancel();
+        mAxVolumeBubble.setAlpha(1f);
+        mAxVolumeBubble.setVisibility(View.VISIBLE);
+        mAxVolumeBubble.setText(percent + "%");
+    }
+
     private void onMotionEvent(MotionEvent ev) {
+        if (handleAxEdgeGesture(ev)) {
+            return;
+        }
         int action = ev.getActionMasked();
         DisplayBackGestureHandler displayBackGestureHandler = mDisplayBackGestureHandlers.get(
                 ev.getDisplayId());

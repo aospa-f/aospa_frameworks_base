@@ -23,16 +23,16 @@ import android.os.Handler
 import android.os.Looper
 import android.os.UserHandle
 import android.provider.Settings
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -40,11 +40,13 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.android.systemui.res.R
 import kotlin.math.roundToInt
@@ -57,9 +59,16 @@ private const val NIGHT_TEMP_DEFAULT = 2850
 // Mirrors android.R.integer.config_reduceBrightColorsStrengthDefault.
 private const val EXTRA_DIM_DEFAULT = 50
 
+// Match the main brightness slider's track and thumb proportions.
+private val TRACK_HEIGHT = 40.dp
+private val TRACK_CORNER = 12.dp
+private val THUMB_WIDTH = 4.dp
+private val THUMB_HEIGHT = 52.dp
+
 /**
  * Extra dim and Night Light intensity sliders shown directly below the main brightness slider
- * while their respective feature is enabled.
+ * while their respective feature is enabled. They intentionally have no visible labels or
+ * percentage text so they read as two extra brightness bars.
  */
 @Composable
 fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
@@ -146,7 +155,10 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
         return
     }
 
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         if (extraDimOn) {
             ExtraBrightnessSlider(
                 label = stringResource(R.string.extra_dim_brightness_label),
@@ -194,34 +206,42 @@ private fun ExtraBrightnessSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.width(88.dp),
-        )
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = 0f..1f,
-            modifier = Modifier.weight(1f).height(36.dp),
-            colors =
-                SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
-        )
-        Text(
-            text = "${(value * 100).roundToInt()}%",
-            style = MaterialTheme.typography.labelMedium,
-            textAlign = TextAlign.End,
-            modifier = Modifier.width(44.dp),
-        )
-    }
+    Slider(
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = 0f..1f,
+        modifier =
+            Modifier.fillMaxWidth().height(THUMB_HEIGHT).semantics {
+                contentDescription = label
+                stateDescription = "${(value * 100).roundToInt()}%"
+            },
+        thumb = {
+            Box(
+                modifier =
+                    Modifier.width(THUMB_WIDTH)
+                        .height(THUMB_HEIGHT)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(MaterialTheme.colorScheme.primary)
+            )
+        },
+        track = { sliderState ->
+            Box(
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .height(TRACK_HEIGHT)
+                        .clip(RoundedCornerShape(TRACK_CORNER))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Box(
+                    modifier =
+                        Modifier.fillMaxWidth(sliderState.coercedValueAsFraction)
+                            .height(TRACK_HEIGHT)
+                            .clip(RoundedCornerShape(TRACK_CORNER))
+                            .background(MaterialTheme.colorScheme.primary)
+                )
+            }
+        },
+    )
 }
 
 private fun readSecureInt(context: Context, key: String, default: Int): Int =

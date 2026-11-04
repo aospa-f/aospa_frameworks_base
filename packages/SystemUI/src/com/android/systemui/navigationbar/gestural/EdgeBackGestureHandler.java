@@ -1159,9 +1159,15 @@ public class EdgeBackGestureHandler {
             final float x = ev.getX();
             final float y = ev.getY();
             final float edgeSlop = axDp(2);
-            final boolean onLeft = x <= mEdgeWidthLeft + mLeftInset + edgeSlop;
+            final float maxEdgeWidth = axDp(18);
+            final boolean onLeft =
+                    x <= Math.min(mEdgeWidthLeft + mLeftInset + edgeSlop, maxEdgeWidth);
             final boolean onRight =
-                    x >= mDisplaySize.x - (mEdgeWidthRight + mRightInset + edgeSlop);
+                    x
+                            >= mDisplaySize.x
+                                    - Math.min(
+                                            mEdgeWidthRight + mRightInset + edgeSlop,
+                                            maxEdgeWidth);
             if (!onLeft && !onRight) {
                 return false;
             }

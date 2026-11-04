@@ -81,6 +81,7 @@ import android.os.Looper;
 import android.media.AudioManager;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.Typeface;
+import android.graphics.Color;
 import android.app.StatusBarManager;
 
 import androidx.annotation.DimenRes;
@@ -1289,18 +1290,26 @@ public class EdgeBackGestureHandler {
         return (int) (dp * mContext.getResources().getDisplayMetrics().density);
     }
 
+    private void axApplyBubbleTheme(TextView bubble) {
+        final boolean dark =
+                (mContext.getResources().getConfiguration().uiMode
+                                & Configuration.UI_MODE_NIGHT_MASK)
+                        == Configuration.UI_MODE_NIGHT_YES;
+        final GradientDrawable shape = new GradientDrawable();
+        shape.setShape(GradientDrawable.OVAL);
+        shape.setColor(dark ? Color.BLACK : Color.WHITE);
+        bubble.setBackground(shape);
+        bubble.setTextColor(
+                mContext.getColor(com.android.internal.R.color.system_accent1_500));
+    }
+
     private void axShowVolumeBubble(int percent, boolean left) {
         if (mAxVolumeBubble == null) {
             final TextView bubble = new TextView(mContext);
             bubble.setGravity(Gravity.CENTER);
             bubble.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
             bubble.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-            final GradientDrawable shape = new GradientDrawable();
-            shape.setShape(GradientDrawable.OVAL);
-            shape.setColor(mContext.getColor(com.android.internal.R.color.system_accent1_100));
-            bubble.setBackground(shape);
-            bubble.setTextColor(
-                    mContext.getColor(com.android.internal.R.color.system_accent1_10));
+            axApplyBubbleTheme(bubble);
             bubble.setElevation(axDp(8));
             final WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
                     axDp(56), axDp(56),
@@ -1333,6 +1342,7 @@ public class EdgeBackGestureHandler {
                 Log.w(TAG, "Unable to move edge volume bubble", e);
             }
         }
+        axApplyBubbleTheme(mAxVolumeBubble);
         mAxMainHandler.removeCallbacks(mAxHideBubbleRunnable);
         mAxVolumeBubble.animate().cancel();
         mAxVolumeBubble.setAlpha(1f);

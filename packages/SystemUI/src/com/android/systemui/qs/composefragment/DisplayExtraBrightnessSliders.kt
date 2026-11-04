@@ -33,9 +33,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -61,6 +61,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import com.android.compose.theme.LocalAndroidColorScheme
 import com.android.systemui.res.R
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -79,9 +80,8 @@ private val TRACK_CORNER = 12.dp
 private val THUMB_WIDTH = 4.dp
 private val THUMB_HEIGHT = 52.dp
 private val TRACK_GAP = 6.dp
-private val ICON_SECTION_WIDTH = 56.dp
-private val ICON_SECTION_GAP = 4.dp
-private val MAIN_ACTION_SLOT = 40.dp
+private val TRAILING_ICON_SIZE = 40.dp
+private val TRAILING_ICON_GAP = 8.dp
 
 /**
  * Extra dim and Night Light intensity sliders shown directly below the main brightness slider
@@ -245,7 +245,7 @@ private fun ExtraBrightnessSlider(
     onValueChange: (Float) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(end = MAIN_ACTION_SLOT),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Slider(
@@ -268,7 +268,7 @@ private fun ExtraBrightnessSlider(
             },
             track = { sliderState ->
                 val activeColor = MaterialTheme.colorScheme.primary
-                val inactiveColor = MaterialTheme.colorScheme.surfaceVariant
+                val inactiveColor = LocalAndroidColorScheme.current.surfaceEffect1
                 Canvas(modifier = Modifier.fillMaxWidth().height(TRACK_HEIGHT)) {
                     val gap = TRACK_GAP.toPx()
                     val corner = TRACK_CORNER.toPx()
@@ -297,13 +297,12 @@ private fun ExtraBrightnessSlider(
                 }
             },
         )
-        Spacer(modifier = Modifier.width(ICON_SECTION_GAP))
+        Spacer(modifier = Modifier.width(TRAILING_ICON_GAP))
         Box(
             modifier =
-                Modifier.width(ICON_SECTION_WIDTH)
-                    .height(TRACK_HEIGHT)
-                    .clip(RoundedCornerShape(TRACK_CORNER))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                Modifier.size(TRAILING_ICON_SIZE)
+                    .clip(CircleShape)
+                    .background(LocalAndroidColorScheme.current.surfaceEffect1)
                     .clickable(role = Role.Button, onClick = onDisable)
                     .semantics { contentDescription = label },
             contentAlignment = Alignment.Center,
@@ -311,7 +310,7 @@ private fun ExtraBrightnessSlider(
             Icon(
                 painter = painterResource(iconRes),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(22.dp),
             )
         }

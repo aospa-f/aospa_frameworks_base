@@ -103,14 +103,16 @@ internal constructor(
 
     /** Must be called before use. */
     fun initialize(parent: NotificationStackScrollLayout) {
-        check(!initialized) { "NotificationSectionsManager already initialized" }
-
-        createSectionsForBuckets()
-
-        initialized = true
+        // SceneContainer inflates its own notification stack in addition to the legacy
+        // root. Rebind the section headers to the attached scene stack instead of failing
+        // the SystemUI process on the second inflation.
+        if (!initialized) {
+            createSectionsForBuckets()
+            initialized = true
+            configurationController.addCallback(configurationListener)
+        }
         this.parent = parent
         reinflateViews()
-        configurationController.addCallback(configurationListener)
     }
 
     fun createSectionsForBuckets() {

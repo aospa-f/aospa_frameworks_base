@@ -58,6 +58,7 @@ import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
 import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.statusbar.core.StatusBarForDesktop
 import com.android.systemui.statusbar.domain.interactor.RemoteInputInteractor
+import com.android.systemui.statusbar.notification.headsup.HeadsUpManager
 import com.android.systemui.statusbar.notification.domain.interactor.NotificationContainerInteractor
 import com.android.systemui.statusbar.notification.stack.ui.view.SharedNotificationContainer
 import com.android.systemui.statusbar.ui.SystemBarUtilsState
@@ -87,6 +88,7 @@ constructor(
     private val shadeModeInteractor: ShadeModeInteractor,
     private val notificationContainerInteractor: NotificationContainerInteractor,
     private val remoteInputInteractor: RemoteInputInteractor,
+    private val headsUpManager: HeadsUpManager,
     private val logger: SceneLogger,
     hapticsViewModelFactory: SceneContainerHapticsViewModel.Factory,
     val lightRevealScrim: LightRevealScrimViewModel,
@@ -296,6 +298,11 @@ constructor(
             sceneInteractor.transitionState.currentOverlays.forEach {
                 sceneInteractor.hideOverlay(it, "Empty space touch")
             }
+        }
+
+        // Dismiss a live alert / heads-up notification when the user touches outside it.
+        if (event.action == MotionEvent.ACTION_OUTSIDE && headsUpManager.hasNotifications()) {
+            headsUpManager.releaseAllImmediately("outside touch")
         }
 
         // check if the touch is outside the window and if remote input is active.

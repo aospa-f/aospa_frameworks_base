@@ -225,12 +225,12 @@ public class EdgeBackGestureHandler {
     private final Optional<DesktopMode> mDesktopModeOptional;
     private final FalsingManager mFalsingManager;
 
-    private static final float AX_EDGE_PANEL_ZONE_END = 0.32f;
-    private static final float AX_EDGE_VOLUME_ZONE_START = 0.34f;
-    private static final float AX_EDGE_VOLUME_ZONE_END = 0.82f;
-    private static final int AX_EDGE_VOLUME_STEP_DP = 24;
+    private static final float AX_EDGE_PANEL_ZONE_END = 0.30f;
+    private static final float AX_EDGE_VOLUME_ZONE_START = 0.30f;
+    private static final float AX_EDGE_VOLUME_ZONE_END = 0.88f;
+    private static final int AX_EDGE_VOLUME_STEP_DP = 20;
     private static final int AX_EDGE_PANEL_SWIPE_DP = 40;
-    private static final int AX_EDGE_BUBBLE_OFFSET_DP = 120;
+    private static final int AX_EDGE_BUBBLE_OFFSET_DP = 150;
 
     private final AudioManager mAxAudioManager;
     private final StatusBarManager mAxStatusBarManager;

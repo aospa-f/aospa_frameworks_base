@@ -23,15 +23,20 @@ import android.os.Handler
 import android.os.Looper
 import android.os.UserHandle
 import android.provider.Settings
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
@@ -41,15 +46,22 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.android.systemui.res.R
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 // Mirrors android.R.integer.config_nightDisplayColorTemperature* on this platform.
@@ -65,11 +77,13 @@ private val TRACK_HEIGHT = 40.dp
 private val TRACK_CORNER = 12.dp
 private val THUMB_WIDTH = 4.dp
 private val THUMB_HEIGHT = 52.dp
+private val TRACK_GAP = 6.dp
+private val TRAILING_ICON_SIZE = 40.dp
 
 /**
  * Extra dim and Night Light intensity sliders shown directly below the main brightness slider
- * while their respective feature is enabled. They intentionally have no visible labels or
- * percentage text so they read as two extra brightness bars.
+ * while their respective feature is enabled. Each one has a trailing icon that turns the
+ * feature off and removes the bar again.
  */
 @Composable
 fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
@@ -157,13 +171,22 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
     }
 
     Column(
-        modifier = modifier.fillMaxWidth().padding(end = 40.dp),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (extraDimOn) {
             ExtraBrightnessSlider(
                 label = stringResource(R.string.extra_dim_brightness_label),
                 value = extraDimLevel / 100f,
+                trailingIconRes = R.drawable.ic_qs_extra_dim,
+                onDisable = {
+                    Settings.Secure.putIntForUser(
+                        resolver,
+                        Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
+                        0,
+                        UserHandle.USER_CURRENT,
+                    )
+                },
                 onValueChange = { value ->
                     val level = (value * 100f).roundToInt().coerceIn(0, 100)
                     extraDimLevel = level
@@ -183,6 +206,15 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
                     ((NIGHT_TEMP_MAX - nightTemperature).toFloat() /
                             (NIGHT_TEMP_MAX - NIGHT_TEMP_MIN))
                         .coerceIn(0f, 1f),
+                trailingIconRes = R.drawable.ic_qs_night_light,
+                onDisable = {
+                    Settings.Secure.putIntForUser(
+                        resolver,
+                        Settings.Secure.NIGHT_DISPLAY_ACTIVATED,
+                        0,
+                        UserHandle.USER_CURRENT,
+                    )
+                },
                 onValueChange = { value ->
                     val temperature =
                         (NIGHT_TEMP_MAX - value * (NIGHT_TEMP_MAX - NIGHT_TEMP_MIN))
@@ -205,44 +237,80 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
 private fun ExtraBrightnessSlider(
     label: String,
     value: Float,
+    trailingIconRes: Int,
+    onDisable: () -> Unit,
     onValueChange: (Float) -> Unit,
 ) {
-    Slider(
-        value = value,
-        onValueChange = onValueChange,
-        valueRange = 0f..1f,
-        modifier =
-            Modifier.fillMaxWidth().height(THUMB_HEIGHT).semantics {
-                contentDescription = label
-                stateDescription = "${(value * 100).roundToInt()}%"
-            },
-        thumb = {
-            Box(
-                modifier =
-                    Modifier.width(THUMB_WIDTH)
-                        .height(THUMB_HEIGHT)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(MaterialTheme.colorScheme.primary)
-            )
-        },
-        track = { sliderState ->
-            Box(
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .height(TRACK_HEIGHT)
-                        .clip(RoundedCornerShape(TRACK_CORNER))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-            ) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = 0f..1f,
+            modifier =
+                Modifier.weight(1f).height(THUMB_HEIGHT).semantics {
+                    contentDescription = label
+                    stateDescription = "${(value * 100).roundToInt()}%"
+                },
+            thumb = {
                 Box(
                     modifier =
-                        Modifier.fillMaxWidth(sliderState.coercedValueAsFraction)
-                            .height(TRACK_HEIGHT)
-                            .clip(RoundedCornerShape(TRACK_CORNER))
+                        Modifier.width(THUMB_WIDTH)
+                            .height(THUMB_HEIGHT)
+                            .clip(RoundedCornerShape(2.dp))
                             .background(MaterialTheme.colorScheme.primary)
                 )
-            }
-        },
-    )
+            },
+            track = { sliderState ->
+                val activeColor = MaterialTheme.colorScheme.primary
+                val inactiveColor = MaterialTheme.colorScheme.surfaceVariant
+                Canvas(modifier = Modifier.fillMaxWidth().height(TRACK_HEIGHT)) {
+                    val gap = TRACK_GAP.toPx()
+                    val corner = TRACK_CORNER.toPx()
+                    val center = size.width * sliderState.coercedValueAsFraction
+                    val activeEnd = (center - gap).coerceAtLeast(0f)
+                    val inactiveStart = (center + gap).coerceAtMost(size.width)
+
+                    if (activeEnd > 0f) {
+                        val radius = min(corner, min(activeEnd / 2f, size.height / 2f))
+                        drawRoundRect(
+                            color = activeColor,
+                            size = Size(activeEnd, size.height),
+                            cornerRadius = CornerRadius(radius, radius),
+                        )
+                    }
+                    if (inactiveStart < size.width) {
+                        val width = size.width - inactiveStart
+                        val radius = min(corner, min(width / 2f, size.height / 2f))
+                        drawRoundRect(
+                            color = inactiveColor,
+                            topLeft = Offset(inactiveStart, 0f),
+                            size = Size(width, size.height),
+                            cornerRadius = CornerRadius(radius, radius),
+                        )
+                    }
+                }
+            },
+        )
+        Box(
+            modifier =
+                Modifier.size(TRAILING_ICON_SIZE)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable(role = Role.Button, onClick = onDisable)
+                    .semantics { contentDescription = label },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(trailingIconRes),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
 }
 
 private fun readSecureInt(context: Context, key: String, default: Int): Int =

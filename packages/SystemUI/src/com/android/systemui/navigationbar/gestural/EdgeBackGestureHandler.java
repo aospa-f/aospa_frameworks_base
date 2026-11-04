@@ -228,7 +228,8 @@ public class EdgeBackGestureHandler {
     private static final float AX_EDGE_PANEL_ZONE_END = 0.30f;
     private static final float AX_EDGE_VOLUME_ZONE_START = 0.30f;
     private static final float AX_EDGE_VOLUME_ZONE_END = 0.88f;
-    private static final int AX_EDGE_VOLUME_STEP_DP = 20;
+    private static final int AX_EDGE_VOLUME_STEP_DP = 12;
+    private static final float AX_EDGE_VOLUME_HORIZONTAL_FRACTION = 0.33f;
     private static final int AX_EDGE_PANEL_SWIPE_DP = 40;
     private static final int AX_EDGE_BUBBLE_OFFSET_DP = 150;
 
@@ -1159,7 +1160,7 @@ public class EdgeBackGestureHandler {
             final float x = ev.getX();
             final float y = ev.getY();
             final float edgeSlop = axDp(2);
-            final float maxEdgeWidth = axDp(18);
+            final float maxEdgeWidth = axDp(22);
             final boolean onLeft =
                     x <= Math.min(mEdgeWidthLeft + mLeftInset + edgeSlop, maxEdgeWidth);
             final boolean onRight =
@@ -1175,7 +1176,10 @@ public class EdgeBackGestureHandler {
             mAxEdgeOnLeft = onLeft;
             mAxEdgePanelAllowed = isAxEdgeSettingEnabled("ax_edge_panel_enabled")
                     && !isAxEdgeAppBlocked("ax_edge_panel_blocked_apps");
-            mAxEdgeVolumeAllowed = isAxEdgeSettingEnabled("ax_edge_volume_enabled")
+            // Keep the volume gesture on the right edge only so it cannot steal the
+            // back gesture from the left edge.
+            mAxEdgeVolumeAllowed = onRight
+                    && isAxEdgeSettingEnabled("ax_edge_volume_enabled")
                     && !isAxEdgeAppBlocked("ax_edge_volume_blocked_apps");
             if (!mAxEdgePanelAllowed && !mAxEdgeVolumeAllowed) {
                 return false;
@@ -1218,17 +1222,30 @@ public class EdgeBackGestureHandler {
             if (mAxEdgeIsVolume) {
                 final int stepPx = axDp(AX_EDGE_VOLUME_STEP_DP);
                 final int newStep = (int) (dy / stepPx);
-                if (newStep != mAxVolumeStep) {
-                    // Sliding up gives a smaller step value, which must raise the volume.
-                    final int direction = newStep < mAxVolumeStep
-                            ? AudioManager.ADJUST_RAISE : AudioManager.ADJUST_LOWER;
-                    final int steps = Math.abs(newStep - mAxVolumeStep);
-                    for (int i = 0; i < steps; i++) {
-                        mAxAudioManager.adjustStreamVolume(
-                                AudioManager.STREAM_MUSIC, direction, 0);
+                final float zone = ev.getY() / mDisplaySize.y;
+                final float distanceFromEdge =
+                        mAxEdgeOnLeft ? ev.getX() : mDisplaySize.x - ev.getX();
+                final boolean inVerticalZone = zone > AX_EDGE_VOLUME_ZONE_START
+                        && zone < AX_EDGE_VOLUME_ZONE_END;
+                final boolean inHorizontalZone = distanceFromEdge
+                        <= mDisplaySize.x * AX_EDGE_VOLUME_HORIZONTAL_FRACTION;
+                if (inVerticalZone && inHorizontalZone) {
+                    if (newStep != mAxVolumeStep) {
+                        // Sliding up gives a smaller step value, which must raise the volume.
+                        final int direction = newStep < mAxVolumeStep
+                                ? AudioManager.ADJUST_RAISE : AudioManager.ADJUST_LOWER;
+                        final int steps = Math.abs(newStep - mAxVolumeStep);
+                        for (int i = 0; i < steps; i++) {
+                            mAxAudioManager.adjustStreamVolume(
+                                    AudioManager.STREAM_MUSIC, direction, 0);
+                        }
+                        mAxVolumeStep = newStep;
+                        axShowVolumeBubble(axVolumePercent(), mAxEdgeOnLeft);
                     }
+                } else {
+                    // Stop following the finger once it leaves the active area, and keep the
+                    // step anchor in sync so re-entering does not jump the volume.
                     mAxVolumeStep = newStep;
-                    axShowVolumeBubble(axVolumePercent(), mAxEdgeOnLeft);
                 }
             } else if (!mAxEdgePanelTriggered && dy > axDp(AX_EDGE_PANEL_SWIPE_DP)) {
                 // Remember the panel request and fire it on lift. Expanding the shade while

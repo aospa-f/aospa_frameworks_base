@@ -30,11 +30,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -78,12 +79,14 @@ private val TRACK_CORNER = 12.dp
 private val THUMB_WIDTH = 4.dp
 private val THUMB_HEIGHT = 52.dp
 private val TRACK_GAP = 6.dp
-private val TRAILING_ICON_SIZE = 40.dp
+private val ICON_SECTION_WIDTH = 56.dp
+private val ICON_SECTION_GAP = 4.dp
+private val MAIN_ACTION_SLOT = 40.dp
 
 /**
  * Extra dim and Night Light intensity sliders shown directly below the main brightness slider
- * while their respective feature is enabled. Each one has a trailing icon that turns the
- * feature off and removes the bar again.
+ * while their respective feature is enabled. The trailing icon sits inside the dark end of the
+ * bar, like the auto-brightness button in the main brightness pill, and turns the feature off.
  */
 @Composable
 fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
@@ -178,7 +181,7 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
             ExtraBrightnessSlider(
                 label = stringResource(R.string.extra_dim_brightness_label),
                 value = extraDimLevel / 100f,
-                trailingIconRes = R.drawable.ic_qs_extra_dim,
+                iconRes = R.drawable.ic_qs_extra_dim,
                 onDisable = {
                     Settings.Secure.putIntForUser(
                         resolver,
@@ -206,7 +209,7 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
                     ((NIGHT_TEMP_MAX - nightTemperature).toFloat() /
                             (NIGHT_TEMP_MAX - NIGHT_TEMP_MIN))
                         .coerceIn(0f, 1f),
-                trailingIconRes = R.drawable.ic_qs_night_light,
+                iconRes = R.drawable.ic_qs_night_light,
                 onDisable = {
                     Settings.Secure.putIntForUser(
                         resolver,
@@ -237,12 +240,12 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
 private fun ExtraBrightnessSlider(
     label: String,
     value: Float,
-    trailingIconRes: Int,
+    iconRes: Int,
     onDisable: () -> Unit,
     onValueChange: (Float) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(end = MAIN_ACTION_SLOT),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Slider(
@@ -294,17 +297,19 @@ private fun ExtraBrightnessSlider(
                 }
             },
         )
+        Spacer(modifier = Modifier.width(ICON_SECTION_GAP))
         Box(
             modifier =
-                Modifier.size(TRAILING_ICON_SIZE)
-                    .clip(CircleShape)
+                Modifier.width(ICON_SECTION_WIDTH)
+                    .height(TRACK_HEIGHT)
+                    .clip(RoundedCornerShape(TRACK_CORNER))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable(role = Role.Button, onClick = onDisable)
                     .semantics { contentDescription = label },
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                painter = painterResource(trailingIconRes),
+                painter = painterResource(iconRes),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(22.dp),

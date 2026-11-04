@@ -55,6 +55,9 @@
     <string name="refresh_rate_tile_120">120 Hz</string>
     <string name="refresh_rate_tile_battery_saver">Battery saver enabled</string>
 
+    <!-- Display extras below the brightness slider -->
+    <string name="extra_dim_brightness_label">Extra dim</string>
+
     <!-- Preferred network tile -->
     <string name="preferred_network_tile_label">Network mode</string>
     <string name="preferred_network_5g_only">5G only</string>

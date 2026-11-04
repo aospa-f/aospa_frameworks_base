@@ -1001,12 +1001,18 @@ constructor(
             )
         ) {
             AlwaysDarkMode {
-                BrightnessSliderContainer(
-                    viewModel = viewModel.containerViewModel.brightnessSliderViewModel,
-                    containerColors =
-                        ContainerColors(Color.Transparent, ContainerColors.defaultContainerColor),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column {
+                    BrightnessSliderContainer(
+                        viewModel = viewModel.containerViewModel.brightnessSliderViewModel,
+                        containerColors =
+                            ContainerColors(
+                                Color.Transparent,
+                                ContainerColors.defaultContainerColor,
+                            ),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    DisplayExtraBrightnessSliders()
+                }
             }
         }
     }

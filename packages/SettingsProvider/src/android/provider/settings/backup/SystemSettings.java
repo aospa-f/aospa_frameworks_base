@@ -128,6 +128,8 @@ public class SystemSettings {
                 Settings.System.NOTIFICATION_COOLDOWN_VIBRATE_UNLOCKED,
                 Settings.System.PREFERRED_REGION,
                 Settings.System.CV_ENABLED,
+                Settings.System.QS_SHOW_BRIGHTNESS,
+                Settings.System.QS_BRIGHTNESS_POSITION_BOTTOM,
                 Settings.System.CV_DYNAMIC_ENABLED,
                 Settings.System.CV_PREFERRED_INTENSITY,
                 Settings.System.PEAK_REFRESH_RATE,

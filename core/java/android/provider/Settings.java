@@ -6931,6 +6931,19 @@ public final class Settings {
                 "cv_enabled";
 
         /**
+         * Whether to show the brightness slider in QS/QQS. 0=hidden, 1=QS, 2=QS and QQS.
+         * @hide
+         */
+        public static final String QS_SHOW_BRIGHTNESS = "qs_show_brightness";
+
+        /**
+         * Whether the QS brightness slider is placed at the bottom.
+         * @hide
+         */
+        public static final String QS_BRIGHTNESS_POSITION_BOTTOM =
+                "qs_brightness_position_bottom";
+
+        /**
          * Setting to set enable/disable CV dynamic mode.
          * Setting should be boolean (0 or 1)
          *

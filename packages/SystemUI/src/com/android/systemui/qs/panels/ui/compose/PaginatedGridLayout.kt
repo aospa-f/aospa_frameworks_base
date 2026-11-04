@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.integerResource
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -68,6 +69,7 @@ constructor(
         modifier: Modifier,
         listening: () -> Boolean,
         enableRevealEffect: Boolean,
+        afterTiles: (@Composable () -> Unit)?,
     ) {
         val viewModel =
             rememberViewModel(traceName = "PaginatedGridLayout-TileGrid") {
@@ -147,6 +149,11 @@ constructor(
                         enableRevealEffect = false,
                     )
                 }
+            }
+            afterTiles?.let {
+                Spacer(Modifier.requiredHeight(dimensionResource(R.dimen.qs_tile_margin_vertical)))
+                it()
+                Spacer(Modifier.requiredHeight(dimensionResource(R.dimen.qs_tile_margin_vertical)))
             }
             FooterBar(
                 buildNumberViewModelFactory = viewModel.buildNumberViewModelFactory,

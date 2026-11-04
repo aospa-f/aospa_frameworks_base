@@ -16,6 +16,10 @@
 
 package com.android.systemui.qs.panels.ui.compose.infinitegrid
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +76,7 @@ constructor(
         modifier: Modifier,
         listening: () -> Boolean,
         enableRevealEffect: Boolean,
+        afterTiles: (@Composable () -> Unit)?,
     ) {
         val viewModel =
             rememberViewModel(traceName = "InfiniteGridLayout.TileGrid") {
@@ -100,37 +105,44 @@ constructor(
         val bounceables =
             remember(sizedTiles) { List(sizedTiles.size) { BounceableTileViewModel() } }
         val spans by remember(sizedTiles) { derivedStateOf { sizedTiles.fastMap { it.width } } }
-        VerticalSpannedGrid(
-            columns = columns,
-            columnSpacing = dimensionResource(R.dimen.qs_tile_margin_horizontal),
-            rowSpacing = dimensionResource(R.dimen.qs_tile_margin_vertical),
-            spans = spans,
-            keys = { sizedTiles[it].tile.spec },
-            modifier = modifier,
-        ) { spanIndex, column, isFirstInColumn, isLastInColumn ->
-            val it = sizedTiles[spanIndex]
+        Column(modifier = modifier) {
+            VerticalSpannedGrid(
+                columns = columns,
+                columnSpacing = dimensionResource(R.dimen.qs_tile_margin_horizontal),
+                rowSpacing = dimensionResource(R.dimen.qs_tile_margin_vertical),
+                spans = spans,
+                keys = { sizedTiles[it].tile.spec },
+                modifier = Modifier.fillMaxWidth(),
+            ) { spanIndex, column, isFirstInColumn, isLastInColumn ->
+                val it = sizedTiles[spanIndex]
+                val iconOnly = iconTilesViewModel.isIconTile(it.tile.spec)
+                Element(it.tile.spec.toElementKey(), Modifier) {
+                    Tile(
+                        tile = it.tile,
+                        iconOnly = iconOnly,
+                        squishiness = { squishiness },
+                        tileHapticsViewModelFactory = tileHapticsViewModelFactory,
+                        coroutineScope = scope,
+                        bounceableInfo =
+                            bounceables.bounceableInfo(
+                                it,
+                                index = spanIndex,
+                                column = column,
+                                columns = columns,
+                                isFirstInRow = isFirstInColumn,
+                                isLastInRow = isLastInColumn,
+                            ),
+                        detailsViewModel = detailsViewModel,
+                        isVisible = listening,
+                        requestToggleTextFeedback = textFeedbackViewModel::requestShowFeedback,
+                        enableRevealEffect = enableRevealEffect,
+                    )
+                }
+            }
 
-            Element(it.tile.spec.toElementKey(), Modifier) {
-                Tile(
-                    tile = it.tile,
-                    iconOnly = iconTilesViewModel.isIconTile(it.tile.spec),
-                    squishiness = { squishiness },
-                    tileHapticsViewModelFactory = tileHapticsViewModelFactory,
-                    coroutineScope = scope,
-                    bounceableInfo =
-                        bounceables.bounceableInfo(
-                            it,
-                            index = spanIndex,
-                            column = column,
-                            columns = columns,
-                            isFirstInRow = isFirstInColumn,
-                            isLastInRow = isLastInColumn,
-                        ),
-                    detailsViewModel = detailsViewModel,
-                    isVisible = listening,
-                    requestToggleTextFeedback = textFeedbackViewModel::requestShowFeedback,
-                    enableRevealEffect = enableRevealEffect,
-                )
+            afterTiles?.let {
+                Spacer(Modifier.height(dimensionResource(R.dimen.qs_tile_margin_vertical)))
+                it()
             }
         }
 

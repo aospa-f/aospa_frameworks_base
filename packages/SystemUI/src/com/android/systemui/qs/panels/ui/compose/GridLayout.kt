@@ -33,6 +33,7 @@ interface GridLayout {
      * @param listening can be used to compose the grid but limit when tiles should be listening. It
      *   should be a function tracking a snapshot state.
      * @param enableRevealEffect If `true`, the tiles will animate using the reveal animation.
+     * @param afterTiles Optional content placed after the tile grid and before its footer.
      */
     @Composable
     fun ContentScope.TileGrid(
@@ -40,6 +41,7 @@ interface GridLayout {
         modifier: Modifier,
         listening: () -> Boolean,
         enableRevealEffect: Boolean,
+        afterTiles: (@Composable () -> Unit)? = null,
     )
 
     @Composable

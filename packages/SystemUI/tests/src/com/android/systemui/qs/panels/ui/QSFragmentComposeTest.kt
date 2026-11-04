@@ -17,9 +17,12 @@
 package com.android.systemui.qs.panels.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.getBoundsInRoot
@@ -148,6 +151,123 @@ class QSFragmentComposeTest : SysuiTestCase() {
         assertThat((tilesBounds.width - mediaBounds.width).abs()).isAtMost(1.dp)
         // Vertically centered
         assertThat((tilesBounds.centerY - mediaBounds.centerY).abs()).isAtMost(1.dp)
+    }
+
+    @Test
+    fun portraitLayout_qqsBrightnessSettingsChange() {
+        verifyQqsBrightnessSettingsChange(mediaInRow = false)
+    }
+
+    @Test
+    fun landscapeLayout_qqsBrightnessSettingsChange() {
+        verifyQqsBrightnessSettingsChange(mediaInRow = true)
+    }
+
+    @Test
+    fun portraitLayout_qsBrightnessSettingsChange() {
+        verifyQsBrightnessSettingsChange(mediaInRow = false)
+    }
+
+    @Test
+    fun landscapeLayout_qsBrightnessSettingsChange() {
+        verifyQsBrightnessSettingsChange(mediaInRow = true)
+    }
+
+    private fun verifyQqsBrightnessSettingsChange(mediaInRow: Boolean) {
+        val showSlider = mutableIntStateOf(1)
+        val sliderAtTop = mutableStateOf(true)
+        composeTestRule.setContent {
+            QuickQuickSettingsLayout(
+                brightness = { Brightness() },
+                tiles = { Tiles(if (mediaInRow) TILES_HEIGHT_LANDSCAPE else TILES_HEIGHT_PORTRAIT) },
+                media = { Media() },
+                mediaInRow = mediaInRow,
+                showSlider = showSlider.intValue,
+                sliderAtTop = sliderAtTop.value,
+            )
+        }
+
+        // The default setting only shows brightness in expanded QS.
+        composeTestRule.onNodeWithTag(BRIGHTNESS).assertDoesNotExist()
+        val tilesTopWithoutBrightness = composeTestRule.onNodeWithTag(TILES).getBoundsInRoot().top
+
+        composeTestRule.runOnIdle { showSlider.intValue = 2 }
+        assertBrightnessPosition(sliderAtTop = true, mediaInRow = mediaInRow)
+
+        composeTestRule.runOnIdle { sliderAtTop.value = false }
+        assertBrightnessPosition(sliderAtTop = false, mediaInRow = mediaInRow)
+
+        composeTestRule.runOnIdle { showSlider.intValue = 0 }
+        composeTestRule.onNodeWithTag(BRIGHTNESS).assertDoesNotExist()
+        assertThat(composeTestRule.onNodeWithTag(TILES).getBoundsInRoot().top)
+            .isEqualTo(tilesTopWithoutBrightness)
+    }
+
+    private fun verifyQsBrightnessSettingsChange(mediaInRow: Boolean) {
+        val showSlider = mutableIntStateOf(0)
+        val sliderAtTop = mutableStateOf(true)
+        composeTestRule.setContent {
+            QuickSettingsLayout(
+                brightness = { Brightness() },
+                tiles = { afterTiles ->
+                    Column {
+                        Tiles(if (mediaInRow) TILES_HEIGHT_LANDSCAPE else TILES_HEIGHT_PORTRAIT)
+                        afterTiles?.invoke()
+                    }
+                },
+                media = { Media() },
+                mediaInRow = mediaInRow,
+                showSlider = showSlider.intValue,
+                sliderAtTop = sliderAtTop.value,
+            )
+        }
+
+        composeTestRule.onNodeWithTag(BRIGHTNESS).assertDoesNotExist()
+
+        composeTestRule.runOnIdle { showSlider.intValue = 1 }
+        assertBrightnessPosition(sliderAtTop = true, mediaInRow = mediaInRow)
+
+        composeTestRule.runOnIdle { sliderAtTop.value = false }
+        assertBrightnessPosition(sliderAtTop = false, mediaInRow = mediaInRow)
+
+        // Showing brightness in both panels must keep it visible in expanded QS.
+        composeTestRule.runOnIdle { showSlider.intValue = 2 }
+        assertBrightnessPosition(sliderAtTop = false, mediaInRow = mediaInRow)
+
+        composeTestRule.runOnIdle { showSlider.intValue = 0 }
+        composeTestRule.onNodeWithTag(BRIGHTNESS).assertDoesNotExist()
+    }
+
+    private fun assertBrightnessPosition(sliderAtTop: Boolean, mediaInRow: Boolean) {
+        val brightnessBounds = composeTestRule.onNodeWithTag(BRIGHTNESS).getBoundsInRoot()
+        val tilesBounds = composeTestRule.onNodeWithTag(TILES).getBoundsInRoot()
+        val mediaBounds = composeTestRule.onNodeWithTag(MEDIA).getBoundsInRoot()
+
+        assertThat(brightnessBounds.left).isEqualTo(tilesBounds.left)
+        if (sliderAtTop || !mediaInRow) {
+            assertThat(brightnessBounds.right).isEqualTo(mediaBounds.right)
+        } else {
+            assertThat(brightnessBounds.right).isAtMost(mediaBounds.left)
+        }
+        if (sliderAtTop) {
+            assertThat(brightnessBounds.bottom).isLessThan(tilesBounds.top)
+            assertThat(brightnessBounds.bottom).isLessThan(mediaBounds.top)
+        } else {
+            assertThat(brightnessBounds.top).isGreaterThan(tilesBounds.bottom)
+            if (!mediaInRow) {
+                assertThat(brightnessBounds.bottom).isLessThan(mediaBounds.top)
+            }
+        }
+        if (mediaInRow) {
+            assertThat(tilesBounds.right).isLessThan(mediaBounds.left)
+            assertThat((tilesBounds.width - mediaBounds.width).abs()).isAtMost(1.dp)
+            if (sliderAtTop) {
+                assertThat((tilesBounds.centerY - mediaBounds.centerY).abs()).isAtMost(1.dp)
+            }
+        } else {
+            assertThat(tilesBounds.right).isEqualTo(mediaBounds.right)
+            assertThat(tilesBounds.bottom).isLessThan(mediaBounds.top)
+        }
     }
 
     private companion object {

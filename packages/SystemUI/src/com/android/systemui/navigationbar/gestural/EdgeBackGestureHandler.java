@@ -1176,10 +1176,7 @@ public class EdgeBackGestureHandler {
             mAxEdgeOnLeft = onLeft;
             mAxEdgePanelAllowed = isAxEdgeSettingEnabled("ax_edge_panel_enabled")
                     && !isAxEdgeAppBlocked("ax_edge_panel_blocked_apps");
-            // Keep the volume gesture on the right edge only so it cannot steal the
-            // back gesture from the left edge.
-            mAxEdgeVolumeAllowed = onRight
-                    && isAxEdgeSettingEnabled("ax_edge_volume_enabled")
+            mAxEdgeVolumeAllowed = isAxEdgeSettingEnabled("ax_edge_volume_enabled")
                     && !isAxEdgeAppBlocked("ax_edge_volume_blocked_apps");
             if (!mAxEdgePanelAllowed && !mAxEdgeVolumeAllowed) {
                 return false;
@@ -1327,6 +1324,15 @@ public class EdgeBackGestureHandler {
     }
 
     private void axShowVolumeBubble(int percent, boolean left) {
+        if (left) {
+            // The left edge still changes volume, but the bubble is only shown on the right.
+            if (mAxVolumeBubble != null) {
+                mAxMainHandler.removeCallbacks(mAxHideBubbleRunnable);
+                mAxVolumeBubble.animate().cancel();
+                mAxVolumeBubble.setVisibility(View.GONE);
+            }
+            return;
+        }
         if (mAxVolumeBubble == null) {
             final TextView bubble = new TextView(mContext);
             bubble.setGravity(Gravity.CENTER);

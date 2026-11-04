@@ -103,6 +103,13 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
                 setTrackingHeadsUp(false, "Intercept DOWN ");
                 ExpandableView child = mCallback.getChildAtRawPosition(x, y);
                 mTouchingHeadsUpView = false;
+                NotificationEntry topEntry = mHeadsUpManager.getTopEntry();
+                if (topEntry != null && child != topEntry.getRow()) {
+                    // Touching anywhere outside the live alert card dismisses it instead of
+                    // leaving it on screen until the auto-dismiss timeout.
+                    mHeadsUpManager.releaseAllImmediately("outside touch");
+                    return false;
+                }
                 if (child instanceof ExpandableNotificationRow) {
                     ExpandableNotificationRow pickedChild = (ExpandableNotificationRow) child;
                     mTouchingHeadsUpView = !mCallback.isExpanded()
@@ -110,15 +117,6 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
                     if (mTouchingHeadsUpView) {
                         setPickedChild(pickedChild, "Intercept DOWN on HUN");
                         eventStr += " on HUN";
-                    }
-                } else if (child == null && !mCallback.isExpanded()) {
-                    // Over home screen:
-                    // Touch was outside visible HUN but we still want to capture it.
-                    NotificationEntry topEntry = mHeadsUpManager.getTopEntry();
-                    if (topEntry != null && topEntry.isRowPinned()) {
-                        setPickedChild(topEntry.getRow(), "Intercept DOWN outside HUN");
-                        mTouchingHeadsUpView = true;
-                        eventStr += " outside HUN";
                     }
                 }
                 break;

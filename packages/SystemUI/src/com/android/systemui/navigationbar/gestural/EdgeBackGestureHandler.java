@@ -228,7 +228,7 @@ public class EdgeBackGestureHandler {
     private static final float AX_EDGE_PANEL_ZONE_END = 0.30f;
     private static final float AX_EDGE_VOLUME_ZONE_START = 0.30f;
     private static final float AX_EDGE_VOLUME_ZONE_END = 0.88f;
-    private static final int AX_EDGE_VOLUME_STEP_DP = 12;
+    private static final int AX_EDGE_VOLUME_STEP_DP = 8;
     private static final float AX_EDGE_VOLUME_HORIZONTAL_FRACTION = 0.33f;
     private static final int AX_EDGE_PANEL_SWIPE_DP = 40;
     private static final int AX_EDGE_BUBBLE_OFFSET_DP = 150;
@@ -238,7 +238,6 @@ public class EdgeBackGestureHandler {
     private final Handler mAxMainHandler = new Handler(Looper.getMainLooper());
     private TextView mAxVolumeBubble;
     private WindowManager.LayoutParams mAxVolumeBubbleLp;
-    private boolean mAxVolumeBubbleOnLeft;
     private boolean mAxEdgeTracking;
     private boolean mAxEdgeActive;
     private boolean mAxEdgeIsVolume;
@@ -1210,7 +1209,7 @@ public class EdgeBackGestureHandler {
                     mAxEdgeActive = true;
                     mAxEdgeIsVolume = true;
                     axPilferEdgeGesture(ev);
-                    axShowVolumeBubble(axVolumePercent(), mAxEdgeOnLeft);
+                    axShowVolumeBubble(axVolumePercent());
                 } else {
                     return false;
                 }
@@ -1237,7 +1236,7 @@ public class EdgeBackGestureHandler {
                                     AudioManager.STREAM_MUSIC, direction, 0);
                         }
                         mAxVolumeStep = newStep;
-                        axShowVolumeBubble(axVolumePercent(), mAxEdgeOnLeft);
+                        axShowVolumeBubble(axVolumePercent());
                     }
                 } else {
                     // Stop following the finger once it leaves the active area, and keep the
@@ -1323,16 +1322,7 @@ public class EdgeBackGestureHandler {
                 mContext.getColor(com.android.internal.R.color.system_accent1_500));
     }
 
-    private void axShowVolumeBubble(int percent, boolean left) {
-        if (left) {
-            // The left edge still changes volume, but the bubble is only shown on the right.
-            if (mAxVolumeBubble != null) {
-                mAxMainHandler.removeCallbacks(mAxHideBubbleRunnable);
-                mAxVolumeBubble.animate().cancel();
-                mAxVolumeBubble.setVisibility(View.GONE);
-            }
-            return;
-        }
+    private void axShowVolumeBubble(int percent) {
         if (mAxVolumeBubble == null) {
             final TextView bubble = new TextView(mContext);
             bubble.setGravity(Gravity.CENTER);
@@ -1348,7 +1338,7 @@ public class EdgeBackGestureHandler {
                             | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                             | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                     PixelFormat.TRANSLUCENT);
-            lp.gravity = (left ? Gravity.LEFT : Gravity.RIGHT) | Gravity.CENTER_VERTICAL;
+            lp.gravity = Gravity.RIGHT | Gravity.CENTER_VERTICAL;
             lp.x = axDp(10);
             lp.y = -axDp(AX_EDGE_BUBBLE_OFFSET_DP);
             try {
@@ -1359,11 +1349,8 @@ public class EdgeBackGestureHandler {
             }
             mAxVolumeBubble = bubble;
             mAxVolumeBubbleLp = lp;
-            mAxVolumeBubbleOnLeft = left;
-        } else if (mAxVolumeBubbleOnLeft != left && mAxVolumeBubbleLp != null) {
-            mAxVolumeBubbleOnLeft = left;
-            mAxVolumeBubbleLp.gravity =
-                    (left ? Gravity.LEFT : Gravity.RIGHT) | Gravity.CENTER_VERTICAL;
+        } else if (mAxVolumeBubbleLp != null) {
+            mAxVolumeBubbleLp.gravity = Gravity.RIGHT | Gravity.CENTER_VERTICAL;
             mAxVolumeBubbleLp.y = -axDp(AX_EDGE_BUBBLE_OFFSET_DP);
             try {
                 mDefaultWindowManager.updateViewLayout(mAxVolumeBubble, mAxVolumeBubbleLp);

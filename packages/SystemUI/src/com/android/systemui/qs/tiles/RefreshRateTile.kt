@@ -142,7 +142,7 @@ constructor(
             else -> mContext.getString(R.string.refresh_rate_tile_90_adaptive)
         }
         state.contentDescription = state.label
-        state.icon = ResourceIcon.get(R.drawable.ic_refresh_rate)
+        state.icon = ResourceIcon.get(R.drawable.ic_qs_refresh_rate)
     }
 
     override fun getLongClickIntent(): Intent =

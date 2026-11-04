@@ -138,6 +138,23 @@ interface PolicyModule {
         const val MIC_TOGGLE_TILE_SPEC = "mictoggle"
         const val MODES_TILE_SPEC = "dnd" // Value is "DND" to replace the old DND tile.
         const val MODES_DND_TILE_SPEC = "modes_dnd"
+        const val REFRESH_RATE_TILE_SPEC = "refresh_rate"
+
+        /** Inject RefreshRateTile config so it is grouped under Utilities in edit mode. */
+        @Provides
+        @IntoMap
+        @StringKey(REFRESH_RATE_TILE_SPEC)
+        fun provideRefreshRateTileConfig(uiEventLogger: QsEventLogger): QSTileConfig =
+            QSTileConfig(
+                tileSpec = TileSpec.create(REFRESH_RATE_TILE_SPEC),
+                uiConfig =
+                    QSTileUIConfig.Resource(
+                        iconRes = R.drawable.ic_qs_refresh_rate,
+                        labelRes = R.string.refresh_rate_tile_label,
+                    ),
+                instanceId = uiEventLogger.getNewInstanceId(),
+                category = TileCategory.UTILITIES,
+            )
 
         /** Inject ModesTile into tileMap in QSModule */
         @Provides

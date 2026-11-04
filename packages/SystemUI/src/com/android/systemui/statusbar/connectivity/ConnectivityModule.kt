@@ -185,6 +185,22 @@ interface ConnectivityModule {
         const val HOTSPOT_TILE_SPEC = "hotspot"
         const val CAST_TILE_SPEC = "cast"
         const val BLUETOOTH_TILE_SPEC = "bt"
+        const val PREFERRED_NETWORK_TILE_SPEC = "preferred_network"
+
+        @Provides
+        @IntoMap
+        @StringKey(PREFERRED_NETWORK_TILE_SPEC)
+        fun providePreferredNetworkTileConfig(uiEventLogger: QsEventLogger): QSTileConfig =
+            QSTileConfig(
+                tileSpec = TileSpec.create(PREFERRED_NETWORK_TILE_SPEC),
+                uiConfig =
+                    QSTileUIConfig.Resource(
+                        iconRes = R.drawable.ic_qs_network_mode,
+                        labelRes = R.string.preferred_network_tile_label,
+                    ),
+                instanceId = uiEventLogger.getNewInstanceId(),
+                category = TileCategory.CONNECTIVITY,
+            )
 
         @Provides
         @IntoMap

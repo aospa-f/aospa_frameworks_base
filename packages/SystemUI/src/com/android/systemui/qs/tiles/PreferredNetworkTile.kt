@@ -105,7 +105,7 @@ constructor(
         state.label = getTileLabel()
         state.secondaryLabel = getModeLabel(mode)
         state.contentDescription = state.label
-        state.icon = ResourceIcon.get(R.drawable.ic_statusbar_mobile_network)
+        state.icon = ResourceIcon.get(R.drawable.ic_qs_network_mode)
     }
 
     override fun getLongClickIntent(): Intent {

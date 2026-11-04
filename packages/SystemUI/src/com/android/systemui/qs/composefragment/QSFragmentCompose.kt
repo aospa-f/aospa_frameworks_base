@@ -256,7 +256,7 @@ constructor(
 
     private fun readBrightnessSettings() {
         showBrightness = Settings.System.getIntForUser(
-            settingsResolver, Settings.System.QS_SHOW_BRIGHTNESS, 1, userTracker.userId)
+            settingsResolver, Settings.System.QS_SHOW_BRIGHTNESS, 2, userTracker.userId)
         brightnessAtBottom = Settings.System.getIntForUser(
             settingsResolver, Settings.System.QS_BRIGHTNESS_POSITION_BOTTOM, 0,
             userTracker.userId) != 0

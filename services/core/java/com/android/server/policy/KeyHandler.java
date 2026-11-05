@@ -73,6 +73,8 @@ public class KeyHandler {
     // Default value for gesture enabled state.
     // 1 = enabled, 0 = disabled.
     private static final int GESTURES_DEFAULT = 1; // 0 = disabled, 1 = enabled
+    // Number of volume steps applied by one screen-off volume gesture.
+    private static final int VOLUME_GESTURE_STEPS = 2;
 
     private static final String DOZE_INTENT = "com.android.systemui.doze.pulse";
 
@@ -823,7 +825,9 @@ public class KeyHandler {
         if (mAudioManager == null) {
             return false;
         }
-        mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0);
+        for (int i = 0; i < VOLUME_GESTURE_STEPS; i++) {
+            mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0);
+        }
         return true;
     }
 

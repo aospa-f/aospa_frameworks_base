@@ -632,7 +632,7 @@ public class HdrBrightnessModifier implements BrightnessStateModifier,
 
         boolean isHdrBrightnessEnabled() {
             return Settings.Secure.getIntForUser(mContext.getContentResolver(),
-                    Settings.Secure.HDR_BRIGHTNESS_ENABLED, /* def= */ 1, UserHandle.USER_CURRENT)
+                    Settings.Secure.HDR_BRIGHTNESS_ENABLED, /* def= */ 0, UserHandle.USER_CURRENT)
                     != 0;
         }
 

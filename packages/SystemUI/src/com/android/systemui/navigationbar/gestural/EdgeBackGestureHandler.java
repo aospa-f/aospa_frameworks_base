@@ -230,6 +230,7 @@ public class EdgeBackGestureHandler {
     private static final float AX_EDGE_VOLUME_ZONE_END = 0.88f;
     private static final int AX_EDGE_VOLUME_STEP_DP = 8;
     private static final float AX_EDGE_VOLUME_HORIZONTAL_FRACTION = 0.33f;
+    private static final long AX_EDGE_ACTIVATION_DELAY_MS = 120;
     private static final int AX_EDGE_PANEL_SWIPE_DP = 40;
     private static final int AX_EDGE_BUBBLE_OFFSET_DP = 150;
 
@@ -244,6 +245,7 @@ public class EdgeBackGestureHandler {
     private boolean mAxEdgeOnLeft;
     private boolean mAxEdgePanelAllowed;
     private boolean mAxEdgeVolumeAllowed;
+    private long mAxEdgeDownTime;
     private boolean mAxEdgePanelTriggered;
     private float mAxEdgeDownX;
     private float mAxEdgeDownY;
@@ -1151,6 +1153,7 @@ public class EdgeBackGestureHandler {
             mAxEdgeIsVolume = false;
             mAxEdgePanelTriggered = false;
             mAxVolumeStep = 0;
+            mAxEdgeDownTime = SystemClock.uptimeMillis();
 
             if (mUsingThreeButtonNav || !mIsEnabled || mDisplaySize.x <= 0) {
                 return false;
@@ -1195,7 +1198,16 @@ public class EdgeBackGestureHandler {
             final float dy = ev.getY() - mAxEdgeDownY;
             if (!mAxEdgeActive) {
                 final float slop = Math.max(mTouchSlop * 2f, axDp(12));
-                if (Math.abs(dy) <= slop || Math.abs(dy) <= Math.abs(dx) * 1.5f) {
+                if (Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)) {
+                    // Clearly horizontal: let the normal back gesture own this stream.
+                    mAxEdgeTracking = false;
+                    return false;
+                }
+                if (Math.abs(dy) <= slop || Math.abs(dy) <= Math.abs(dx) * 2.0f) {
+                    return false;
+                }
+                if (SystemClock.uptimeMillis() - mAxEdgeDownTime
+                        < AX_EDGE_ACTIVATION_DELAY_MS) {
                     return false;
                 }
                 final float zone = mAxEdgeDownY / mDisplaySize.y;
@@ -1276,6 +1288,8 @@ public class EdgeBackGestureHandler {
     }
 
     private void axPilferEdgeGesture(MotionEvent ev) {
+        // The normal back handler must not keep a half-started gesture alive.
+        mAllowGesture = false;
         final DisplayBackGestureHandler handler =
                 mDisplayBackGestureHandlers.get(ev.getDisplayId());
         if (handler != null) {

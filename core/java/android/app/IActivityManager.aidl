@@ -1084,4 +1084,9 @@ interface IActivityManager {
     void disconnectUserDexopt();
     List<String> getPackagesToBeOptimized();
     void performUserDexopt();
+
+    // Duck RKP device keybox provisioning
+    Bundle getDuckRkpState();
+    void setDuckRkpEnabled(boolean enabled);
+    void provisionDuckRkp();
 }

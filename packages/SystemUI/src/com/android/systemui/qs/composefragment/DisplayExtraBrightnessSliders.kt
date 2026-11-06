@@ -18,6 +18,7 @@ package com.android.systemui.qs.composefragment
 
 import android.content.Context
 import android.database.ContentObserver
+import android.hardware.display.ColorDisplayManager
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -70,10 +71,8 @@ import kotlin.math.roundToInt
 // Mirrors android.R.integer.config_nightDisplayColorTemperature* on this platform.
 private const val NIGHT_TEMP_MIN = 2596
 private const val NIGHT_TEMP_MAX = 5500
-private const val NIGHT_TEMP_DEFAULT = 2850
 
 // Mirrors android.R.integer.config_reduceBrightColorsStrengthDefault.
-private const val EXTRA_DIM_DEFAULT = 50
 
 // Match the main brightness slider's track and thumb proportions.
 private val TRACK_HEIGHT = 40.dp
@@ -93,28 +92,21 @@ private val TRAILING_ICON_GAP = 8.dp
 fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val resolver = context.contentResolver
+    val colorDisplayManager = remember {
+        context.getSystemService(ColorDisplayManager::class.java)
+    }
 
     var extraDimOn by remember {
-        mutableStateOf(
-            readSecureInt(context, Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED, 0) != 0
-        )
+        mutableStateOf(colorDisplayManager.isReduceBrightColorsActivated)
     }
     var extraDimLevel by remember {
-        mutableIntStateOf(
-            readSecureInt(context, Settings.Secure.REDUCE_BRIGHT_COLORS_LEVEL, EXTRA_DIM_DEFAULT)
-        )
+        mutableIntStateOf(colorDisplayManager.reduceBrightColorsStrength)
     }
     var nightLightOn by remember {
-        mutableStateOf(readSecureInt(context, Settings.Secure.NIGHT_DISPLAY_ACTIVATED, 0) != 0)
+        mutableStateOf(colorDisplayManager.isNightDisplayActivated)
     }
     var nightTemperature by remember {
-        mutableIntStateOf(
-            readSecureInt(
-                context,
-                Settings.Secure.NIGHT_DISPLAY_COLOR_TEMPERATURE,
-                NIGHT_TEMP_DEFAULT,
-            )
-        )
+        mutableIntStateOf(colorDisplayManager.nightDisplayColorTemperature)
     }
 
     DisposableEffect(resolver) {
@@ -123,33 +115,13 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
                 override fun onChange(selfChange: Boolean, uri: Uri?) {
                     when (uri?.lastPathSegment) {
                         Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED ->
-                            extraDimOn =
-                                readSecureInt(
-                                    context,
-                                    Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
-                                    0,
-                                ) != 0
+                            extraDimOn = colorDisplayManager.isReduceBrightColorsActivated
                         Settings.Secure.REDUCE_BRIGHT_COLORS_LEVEL ->
-                            extraDimLevel =
-                                readSecureInt(
-                                    context,
-                                    Settings.Secure.REDUCE_BRIGHT_COLORS_LEVEL,
-                                    EXTRA_DIM_DEFAULT,
-                                )
+                            extraDimLevel = colorDisplayManager.reduceBrightColorsStrength
                         Settings.Secure.NIGHT_DISPLAY_ACTIVATED ->
-                            nightLightOn =
-                                readSecureInt(
-                                    context,
-                                    Settings.Secure.NIGHT_DISPLAY_ACTIVATED,
-                                    0,
-                                ) != 0
+                            nightLightOn = colorDisplayManager.isNightDisplayActivated
                         Settings.Secure.NIGHT_DISPLAY_COLOR_TEMPERATURE ->
-                            nightTemperature =
-                                readSecureInt(
-                                    context,
-                                    Settings.Secure.NIGHT_DISPLAY_COLOR_TEMPERATURE,
-                                    NIGHT_TEMP_DEFAULT,
-                                )
+                            nightTemperature = colorDisplayManager.nightDisplayColorTemperature
                     }
                 }
             }
@@ -183,23 +155,11 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
                 label = stringResource(R.string.extra_dim_brightness_label),
                 value = extraDimLevel / 100f,
                 iconRes = R.drawable.ic_qs_extra_dim,
-                onDisable = {
-                    Settings.Secure.putIntForUser(
-                        resolver,
-                        Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
-                        0,
-                        UserHandle.USER_CURRENT,
-                    )
-                },
+                onDisable = { colorDisplayManager.setReduceBrightColorsActivated(false) },
                 onValueChange = { value ->
                     val level = (value * 100f).roundToInt().coerceIn(0, 100)
                     extraDimLevel = level
-                    Settings.Secure.putIntForUser(
-                        resolver,
-                        Settings.Secure.REDUCE_BRIGHT_COLORS_LEVEL,
-                        level,
-                        UserHandle.USER_CURRENT,
-                    )
+                    colorDisplayManager.setReduceBrightColorsStrength(level)
                 },
             )
         }
@@ -211,26 +171,14 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
                             (NIGHT_TEMP_MAX - NIGHT_TEMP_MIN))
                         .coerceIn(0f, 1f),
                 iconRes = R.drawable.ic_qs_night_light,
-                onDisable = {
-                    Settings.Secure.putIntForUser(
-                        resolver,
-                        Settings.Secure.NIGHT_DISPLAY_ACTIVATED,
-                        0,
-                        UserHandle.USER_CURRENT,
-                    )
-                },
+                onDisable = { colorDisplayManager.setNightDisplayActivated(false) },
                 onValueChange = { value ->
                     val temperature =
                         (NIGHT_TEMP_MAX - value * (NIGHT_TEMP_MAX - NIGHT_TEMP_MIN))
                             .roundToInt()
                             .coerceIn(NIGHT_TEMP_MIN, NIGHT_TEMP_MAX)
                     nightTemperature = temperature
-                    Settings.Secure.putIntForUser(
-                        resolver,
-                        Settings.Secure.NIGHT_DISPLAY_COLOR_TEMPERATURE,
-                        temperature,
-                        UserHandle.USER_CURRENT,
-                    )
+                    colorDisplayManager.setNightDisplayColorTemperature(temperature)
                 },
             )
         }
@@ -318,11 +266,3 @@ private fun ExtraBrightnessSlider(
         }
     }
 }
-
-private fun readSecureInt(context: Context, key: String, default: Int): Int =
-    Settings.Secure.getIntForUser(
-        context.contentResolver,
-        key,
-        default,
-        UserHandle.USER_CURRENT,
-    )

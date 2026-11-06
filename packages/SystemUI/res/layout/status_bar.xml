@@ -164,7 +164,9 @@
                         android:id="@+id/network_traffic"
                         android:layout_width="wrap_content"
                         android:layout_height="match_parent"
-                        android:maxLines="2"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:ellipsize="none"
                         android:gravity="center"
                     />
                 </com.android.systemui.statusbar.CustomStatusBarItemHolder>

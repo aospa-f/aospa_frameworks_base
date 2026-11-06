@@ -267,7 +267,7 @@ public class NetworkTraffic extends TextView {
 
                 if (unitid != 0) {
                     unit = mContext.getString(unitid);
-                    return value + "\n" + unit;
+                    return value + " " + unit;
                 } else {
                     return value;
                 }

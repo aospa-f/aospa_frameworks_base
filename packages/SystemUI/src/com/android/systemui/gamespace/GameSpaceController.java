@@ -21,6 +21,7 @@ import android.app.ActivityTaskManager;
 import android.app.NotificationManager;
 import android.app.StatusBarManager;
 import android.app.TaskStackListener;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.database.ContentObserver;
 import android.graphics.PixelFormat;
@@ -36,9 +37,9 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * GameSpace: while a selected game is in the foreground this keeps the status bar and edge
@@ -80,6 +81,9 @@ public final class GameSpaceController {
     private String mForegroundPackage;
     private int mForegroundTaskId = -1;
     private int mGameTaskId = -1;
+    private final Set<String> mSelectedGames = new HashSet<>();
+    private boolean mLockEnabled;
+    private boolean mDndEnabled;
 
     private final Runnable mFade = () -> {
         if (mHandle != null) {
@@ -90,7 +94,10 @@ public final class GameSpaceController {
     private final ContentObserver mSettingsObserver = new ContentObserver(mHandler) {
         @Override
         public void onChange(boolean selfChange) {
-            mHandler.post(() -> evaluate(mForegroundTaskId, mForegroundPackage));
+            mHandler.post(() -> {
+                reloadSettings();
+                evaluate(mForegroundTaskId, mForegroundPackage);
+            });
         }
     };
 
@@ -117,6 +124,7 @@ public final class GameSpaceController {
         registerObserver(KEY_APPS);
         registerObserver(KEY_LOCK);
         registerObserver(KEY_DND);
+        reloadSettings();
 
         // Pick up a game that was already in the foreground before SystemUI (re)started.
         mHandler.post(() -> {
@@ -167,18 +175,26 @@ public final class GameSpaceController {
         }
     }
 
-    private boolean isSelectedGame(String pkg) {
+    private void reloadSettings() {
+        final ContentResolver resolver = mContext.getContentResolver();
         final String stored = Settings.Secure.getStringForUser(
-                mContext.getContentResolver(), KEY_APPS, UserHandle.USER_CURRENT);
-        if (stored == null || stored.isEmpty()) {
-            return false;
+                resolver, KEY_APPS, UserHandle.USER_CURRENT);
+        mSelectedGames.clear();
+        if (stored != null && !stored.isEmpty()) {
+            for (String pkg : stored.split(",")) {
+                if (!pkg.isEmpty()) {
+                    mSelectedGames.add(pkg);
+                }
+            }
         }
-        return new HashSet<>(Arrays.asList(stored.split(","))).contains(pkg);
+        mLockEnabled = Settings.Secure.getIntForUser(
+                resolver, KEY_LOCK, 1, UserHandle.USER_CURRENT) != 0;
+        mDndEnabled = Settings.Secure.getIntForUser(
+                resolver, KEY_DND, 1, UserHandle.USER_CURRENT) != 0;
     }
 
-    private boolean isEnabled(String key) {
-        return Settings.Secure.getIntForUser(
-                mContext.getContentResolver(), key, 1, UserHandle.USER_CURRENT) != 0;
+    private boolean isSelectedGame(String pkg) {
+        return mSelectedGames.contains(pkg);
     }
 
     private void enterGame(int taskId, String pkg) {
@@ -203,7 +219,7 @@ public final class GameSpaceController {
         if (mGame == null) {
             return;
         }
-        if (isEnabled(KEY_LOCK)) {
+        if (mLockEnabled) {
             showHandle();
             if (!mLocked) {
                 setLocked(true);
@@ -214,7 +230,7 @@ public final class GameSpaceController {
             }
             hideHandle();
         }
-        if (isEnabled(KEY_DND)) {
+        if (mDndEnabled) {
             enableDnd();
         } else {
             disableDnd();

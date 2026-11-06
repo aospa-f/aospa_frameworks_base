@@ -34,6 +34,7 @@ import com.android.systemui.dump.DumpHandler;
 import com.android.systemui.dump.LogBufferEulogizer;
 import com.android.systemui.dump.LogBufferFreezer;
 import com.android.systemui.dump.SystemUIAuxiliaryDumpService;
+import com.android.systemui.gamespace.GameSpaceController;
 import com.android.systemui.res.R;
 import com.android.systemui.shared.system.UncaughtExceptionPreHandlerManager;
 import com.android.systemui.statusbar.policy.BatteryStateNotifier;
@@ -80,6 +81,9 @@ public class SystemUIService extends Service {
 
         // Start all of SystemUI
         ((SystemUIApplication) getApplication()).startSystemUserServicesIfNeeded();
+
+        // GameSpace: in-game gesture/status bar lock and automatic DND.
+        GameSpaceController.init(this);
 
         // Finish initializing dump logic
         mLogBufferFreezer.attach(mBroadcastDispatcher);

@@ -91,6 +91,7 @@ import com.android.internal.policy.GestureNavigationSettingsObserver;
 import com.android.systemui.LauncherProxyService;
 import com.android.systemui.contextualeducation.GestureType;
 import com.android.systemui.dagger.qualifiers.Background;
+import com.android.systemui.gamespace.GameSpaceController;
 import com.android.systemui.model.SysUiState;
 import com.android.systemui.navigationbar.NavigationModeController;
 import com.android.systemui.navigationbar.gestural.domain.GestureInteractor;
@@ -1382,6 +1383,10 @@ public class EdgeBackGestureHandler {
     }
 
     private void onMotionEvent(MotionEvent ev) {
+        // GameSpace: swallow edge gestures while the in-game lock is active.
+        if (GameSpaceController.isLocked()) {
+            return;
+        }
         if (handleAxEdgeGesture(ev)) {
             return;
         }

@@ -245,6 +245,7 @@ public class EdgeBackGestureHandler {
     private boolean mAxEdgeOnLeft;
     private boolean mAxEdgePanelAllowed;
     private boolean mAxEdgeVolumeAllowed;
+    private int mAxVolumeStepDp = AX_EDGE_VOLUME_STEP_DP;
     private long mAxEdgeDownTime;
     private boolean mAxEdgePanelTriggered;
     private float mAxEdgeDownX;
@@ -1153,6 +1154,10 @@ public class EdgeBackGestureHandler {
             mAxEdgeIsVolume = false;
             mAxEdgePanelTriggered = false;
             mAxVolumeStep = 0;
+            mAxVolumeStepDp = Math.max(4, Math.min(24,
+                    Settings.Secure.getIntForUser(mContext.getContentResolver(),
+                            "ax_edge_volume_step_dp", AX_EDGE_VOLUME_STEP_DP,
+                            UserHandle.USER_CURRENT)));
             mAxEdgeDownTime = SystemClock.uptimeMillis();
 
             if (mUsingThreeButtonNav || !mIsEnabled || mDisplaySize.x <= 0) {
@@ -1206,10 +1211,6 @@ public class EdgeBackGestureHandler {
                 if (Math.abs(dy) <= slop || Math.abs(dy) <= Math.abs(dx) * 2.0f) {
                     return false;
                 }
-                if (SystemClock.uptimeMillis() - mAxEdgeDownTime
-                        < AX_EDGE_ACTIVATION_DELAY_MS) {
-                    return false;
-                }
                 final float zone = mAxEdgeDownY / mDisplaySize.y;
                 if (dy > 0 && zone < AX_EDGE_PANEL_ZONE_END && mAxEdgePanelAllowed) {
                     mAxEdgeActive = true;
@@ -1228,7 +1229,7 @@ public class EdgeBackGestureHandler {
             }
 
             if (mAxEdgeIsVolume) {
-                final int stepPx = axDp(AX_EDGE_VOLUME_STEP_DP);
+                final int stepPx = axDp(mAxVolumeStepDp);
                 final int newStep = (int) (dy / stepPx);
                 final float zone = ev.getY() / mDisplaySize.y;
                 final float distanceFromEdge =

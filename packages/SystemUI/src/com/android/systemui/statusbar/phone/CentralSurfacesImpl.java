@@ -1205,6 +1205,12 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces {
      */
     protected View.OnTouchListener getStatusBarWindowTouchListener() {
         return (v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_OUTSIDE
+                    && mHeadsUpManager.hasNotifications()
+                    && !mHeadsUpManager.hasPinnedHeadsUp()) {
+                // Tapping anywhere outside the heads-up dismisses it (Fluid Cloud style).
+                mHeadsUpManager.releaseAllImmediately("outside_touch");
+            }
             mAutoHideController.checkUserAutoHide(event);
             if (!SceneContainerFlag.isEnabled()) {
                 // handled by SceneContainerViewModel#onEmptySpaceMotionEvent with SceneContainer

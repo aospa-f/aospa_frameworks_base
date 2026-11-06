@@ -565,12 +565,11 @@ public class StatusBarIconView extends AnimatedImageView implements StatusIconDi
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
         if (!isShownWithNotifications()) {
-            // for system icons, calculated measured width from super is for image drawable real
-            // width (17dp). We may scale the image with font scale, so we also need to scale the
-            // measured width so that scaled measured width and image width would be fit.
-            int measuredWidth = getMeasuredWidth();
-            int measuredHeight = getMeasuredHeight();
-            setMeasuredDimension((int) (measuredWidth * mScaleToFitNewIconSize), measuredHeight);
+            // Use one slot width for every system icon. Their drawable widths differ (alarm,
+            // ringer, rotation lock, DND, volume, ...), which makes the right-side gaps look
+            // inconsistent. The icon is centered and scaled to the drawing size, so a fixed
+            // slot is enough.
+            setMeasuredDimension(mNewStatusBarIconSize, getMeasuredHeight());
         }
     }
 

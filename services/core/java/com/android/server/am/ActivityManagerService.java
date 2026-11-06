@@ -21575,63 +21575,6 @@ public class ActivityManagerService extends IActivityManager.Stub
         AxDexoptManagerImpl.getInstance().performUserDexopt();
     }
 
-    private volatile com.android.server.security.rkp.DuckRkpManager mDuckRkpManager;
-
-    private com.android.server.security.rkp.DuckRkpManager getDuckRkpManager() {
-        com.android.server.security.rkp.DuckRkpManager manager = mDuckRkpManager;
-        if (manager == null) {
-            synchronized (this) {
-                if (mDuckRkpManager == null) {
-                    mDuckRkpManager = new com.android.server.security.rkp.DuckRkpManager(
-                            mContext, mHandler, () -> { });
-                }
-                manager = mDuckRkpManager;
-            }
-        }
-        return manager;
-    }
-
-    private void enforceDuckRkpPermission() {
-        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS,
-                "Device RKP requires WRITE_SECURE_SETTINGS");
-        if (UserHandle.getUserId(Binder.getCallingUid()) != UserHandle.USER_SYSTEM) {
-            throw new SecurityException("Device RKP is managed by the system user");
-        }
-    }
-
-    @Override
-    public Bundle getDuckRkpState() {
-        enforceDuckRkpPermission();
-        long token = Binder.clearCallingIdentity();
-        try {
-            return getDuckRkpManager().getState();
-        } finally {
-            Binder.restoreCallingIdentity(token);
-        }
-    }
-
-    @Override
-    public void setDuckRkpEnabled(boolean enabled) {
-        enforceDuckRkpPermission();
-        long token = Binder.clearCallingIdentity();
-        try {
-            getDuckRkpManager().setEnabled(enabled);
-        } finally {
-            Binder.restoreCallingIdentity(token);
-        }
-    }
-
-    @Override
-    public void provisionDuckRkp() {
-        enforceDuckRkpPermission();
-        long token = Binder.clearCallingIdentity();
-        try {
-            getDuckRkpManager().provision();
-        } finally {
-            Binder.restoreCallingIdentity(token);
-        }
-    }
-
     /** Notifies the app about a potential ANR. */
     public void notifyAnrWarning(
             int uid,

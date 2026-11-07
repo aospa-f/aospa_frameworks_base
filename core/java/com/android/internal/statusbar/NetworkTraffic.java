@@ -85,6 +85,11 @@ public class NetworkTraffic extends TextView {
     private int mUnits;
     private int mIconTint = Color.WHITE;
 
+    // Set by the status bar icon container when there are too many icons on the
+    // end side to fit the indicator comfortably.
+    private static volatile boolean sIconsCrowded;
+    private static final ArrayList<NetworkTraffic> sInstances = new ArrayList<>();
+
     // Network tracking related variables
     private ConnectivityManager mConnectivityManager;
     private ConnectivityManager.NetworkCallback mNetworkCallback;
@@ -192,9 +197,10 @@ public class NetworkTraffic extends TextView {
                         mMode == MODE_UPSTREAM_ONLY || mMode == MODE_UPSTREAM_AND_DOWNSTREAM;
                 final boolean showDownstream =
                         mMode == MODE_DOWNSTREAM_ONLY || mMode == MODE_UPSTREAM_AND_DOWNSTREAM;
-                final boolean shouldHide = mAutoHide
+                boolean shouldHide = mAutoHide
                         && (!showUpstream || mTxKbps < mAutoHideThreshold)
                         && (!showDownstream || mRxKbps < mAutoHideThreshold);
+                shouldHide |= sIconsCrowded;
 
                 if (!enabled || shouldHide) {
                     setText("");
@@ -275,6 +281,25 @@ public class NetworkTraffic extends TextView {
         };
         mObserver = new SettingsObserver(mTrafficHandler);
         updateSettings();
+        sInstances.add(this);
+    }
+
+    private void pokeRefresh() {
+        mTrafficHandler.sendEmptyMessage(MESSAGE_TYPE_PERIODIC_REFRESH);
+    }
+
+    /**
+     * Called by SystemUI when more than a handful of icons share the end side of the
+     * status bar; hides the traffic text until space frees up.
+     */
+    public static void setIconsCrowded(boolean crowded) {
+        if (sIconsCrowded == crowded) {
+            return;
+        }
+        sIconsCrowded = crowded;
+        for (NetworkTraffic traffic : new ArrayList<>(sInstances)) {
+            traffic.pokeRefresh();
+        }
     }
 
     private void unregisterNetworkCallbacks() {
@@ -376,6 +401,7 @@ public class NetworkTraffic extends TextView {
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+        sInstances.remove(this);
         mObserver.unobserve();
         unregisterNetworkCallbacks();
     }

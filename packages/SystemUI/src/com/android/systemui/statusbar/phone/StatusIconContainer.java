@@ -33,7 +33,9 @@ import android.util.Log;
 import android.view.View;
 
 import com.android.keyguard.AlphaOptimizedLinearLayout;
+import com.android.internal.statusbar.NetworkTraffic;
 import com.android.systemui.res.R;
+import com.android.systemui.statusbar.StatusBarIconView;
 import com.android.systemui.statusbar.StatusIconDisplayable;
 import com.android.systemui.statusbar.notification.stack.AnimationFilter;
 import com.android.systemui.statusbar.notification.stack.AnimationProperties;
@@ -58,6 +60,8 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
     private static final boolean DEBUG_OVERFLOW = false;
     // Max 8 status icons including battery
     private static final int MAX_ICONS = 7;
+    // Hide the network speed indicator when more icons than this share the bar.
+    private static final int MAX_ICONS_FOR_TRAFFIC = 5;
     private static final int MAX_DOTS = 1;
 
     private int mDotPadding;
@@ -135,6 +139,7 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         resetViewStates();
         calculateIconTranslations();
         applyIconStates();
+        NetworkTraffic.setIconsCrowded(mLayoutStates.size() > MAX_ICONS_FOR_TRAFFIC);
     }
 
     @Override
@@ -335,6 +340,11 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
             // Move translationX to the spot within StatusIconContainer's layout to add the view
             // without cutting off the child view.
             translationX -= getViewTotalWidth(child);
+            if (child instanceof StatusBarIconView
+                    && "battery".equals(((StatusBarIconView) child).getSlot())) {
+                // Keep a clear gap between the network icons and the battery.
+                translationX -= mIconSpacing;
+            }
             childState.visibleState = STATE_ICON;
             childState.setXTranslation(translationX);
             mLayoutStates.add(0, childState);

@@ -218,11 +218,15 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
     }
 
     private int getMeasuredWidth(int widthMode, int specWidth, int totalWidth) {
-        // Lay out every icon: never clamp the container to the available spec, so
-        // system icons are always drawn instead of collapsing into the overflow
-        // dot. Space pressure is absorbed by trailing views (e.g. the network
-        // speed label) instead.
-        return totalWidth;
+        // Lay out every icon, but never claim more width than the parent offers:
+        // claiming the full unclamped content width pushed the battery (a sibling
+        // view laid out after this container) past the screen edge and clipped it.
+        // Space pressure is handled by compressing the icon gaps in
+        // calculateIconTranslations() instead.
+        if (widthMode == MeasureSpec.UNSPECIFIED) {
+            return totalWidth;
+        }
+        return Math.min(totalWidth, specWidth);
     }
 
     @Override
@@ -324,6 +328,37 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         if (DEBUG) Log.d(TAG, "calculateIconTranslations: start=" + translationX
                 + " width=" + width + " underflow=" + mNeedsUnderflow);
 
+        // Pre-compute how much space the visible icons need so the gaps can be
+        // compressed when the bar runs out of room. This keeps every icon on
+        // screen (including the battery sibling to our right) instead of letting
+        // the row overflow past the display edge.
+        float contentsWidth = 0f;
+        int visibleIcons = 0;
+        for (int i = 0; i < childCount; i++) {
+            View child = getChildAt(i);
+            StatusIconDisplayable iconView = (StatusIconDisplayable) child;
+            if (!iconView.isIconVisible() || iconView.isIconBlocked()
+                    || mIgnoredSlots.contains(iconView.getSlot())) {
+                continue;
+            }
+            contentsWidth += getViewTotalWidth(child);
+            visibleIcons++;
+        }
+        float available = width - getPaddingStart() - getPaddingEnd();
+        float spacing = mIconSpacing;
+        float batteryExtra = mIconSpacing;
+        if (visibleIcons > 0) {
+            float needed = contentsWidth + (visibleIcons - 1) * spacing + batteryExtra;
+            if (needed > available) {
+                float excess = needed - available;
+                float totalGap = (visibleIcons - 1) * spacing + batteryExtra;
+                float scale = totalGap > 0f
+                        ? Math.max(0f, (totalGap - excess) / totalGap) : 0f;
+                spacing *= scale;
+                batteryExtra *= scale;
+            }
+        }
+
         // Collect all of the states which want to be visible
         for (int i = childCount - 1; i >= 0; i--) {
             View child = getChildAt(i);
@@ -339,18 +374,19 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
 
             // Move translationX to the spot within StatusIconContainer's layout to add the view
             // without cutting off the child view.
-            translationX -= getViewTotalWidth(child);
+            float gap;
             if (child instanceof StatusBarIconView
                     && "battery".equals(((StatusBarIconView) child).getSlot())) {
                 // Keep a clear gap between the network icons and the battery.
-                translationX -= mIconSpacing;
+                gap = batteryExtra;
+            } else {
+                gap = spacing;
             }
+            translationX -= getViewTotalWidth(child);
+            translationX -= gap;
             childState.visibleState = STATE_ICON;
             childState.setXTranslation(translationX);
             mLayoutStates.add(0, childState);
-
-            // Shift translationX over by mIconSpacing for the next view.
-            translationX -= mIconSpacing;
         }
 
         // Show either 1-MAX_ICONS icons, or (MAX_ICONS - 1) icons + overflow

@@ -352,11 +352,11 @@ private class CellularIconViewModelKairos(
             iconInteractor.activity
         }
 
-    override val activityInVisible: KairosState<Boolean> =
-        activity.map { it?.hasActivityIn ?: false }
+    // The tiny in/out data-activity carets flicker as traffic flows and crowd the
+    // right side of the status bar; this build does not show them.
+    override val activityInVisible: KairosState<Boolean> = stateOf(false)
 
-    override val activityOutVisible: KairosState<Boolean> =
-        activity.map { it?.hasActivityOut ?: false }
+    override val activityOutVisible: KairosState<Boolean> = stateOf(false)
 
     override val activityContainerVisible: KairosState<Boolean> =
         if (SystemStatusIconsInCompose.isEnabled) {
@@ -364,9 +364,8 @@ private class CellularIconViewModelKairos(
         } else {
             activity.map { it != null && (it.hasActivityIn || it.hasActivityOut) }
         }
-    override val volteId: KairosState<Int> =
-        combine(iconInteractor.volteId, iconInteractor.isMobileHdForceHidden) { id, hidden ->
-            if (hidden) 0 else id
-        }
+    // Force-hide the HD (VoLTE) badge; the carrier toggles it back on regardless
+    // of the user-facing HD-calling preference.
+    override val volteId: KairosState<Int> = stateOf(0)
     override val showSignalStrengthIcon: KairosState<Boolean> = iconInteractor.showSignalStrengthIcon
 }

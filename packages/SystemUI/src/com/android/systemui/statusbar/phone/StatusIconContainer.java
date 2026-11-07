@@ -61,7 +61,7 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
     // Max 8 status icons including battery
     private static final int MAX_ICONS = 7;
     // Hide the network speed indicator when more icons than this share the bar.
-    private static final int MAX_ICONS_FOR_TRAFFIC = 5;
+    private static final int MAX_ICONS_FOR_TRAFFIC = 3;
     private static final int MAX_DOTS = 1;
 
     private int mDotPadding;

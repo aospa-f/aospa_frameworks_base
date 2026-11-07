@@ -381,14 +381,10 @@ private class CellularIconViewModel(
         } else {
             iconInteractor.activity
         }
-    override val activityInVisible: Flow<Boolean> =
-        activity
-            .map { it?.hasActivityIn ?: false }
-            .stateIn(scope, SharingStarted.WhileSubscribed(), false)
-    override val activityOutVisible: Flow<Boolean> =
-        activity
-            .map { it?.hasActivityOut ?: false }
-            .stateIn(scope, SharingStarted.WhileSubscribed(), false)
+    // The tiny in/out data-activity carets flicker as traffic flows and crowd the
+    // right side of the status bar; this build does not show them.
+    override val activityInVisible: Flow<Boolean> = flowOf(false)
+    override val activityOutVisible: Flow<Boolean> = flowOf(false)
     override val activityContainerVisible: Flow<Boolean> =
         if (SystemStatusIconsInCompose.isEnabled) {
                 flowOf(constants.shouldShowActivityConfig)

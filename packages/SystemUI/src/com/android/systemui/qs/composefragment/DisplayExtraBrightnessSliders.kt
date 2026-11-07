@@ -102,7 +102,6 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
     var extraDimLevel by remember {
         mutableIntStateOf(colorDisplayManager.reduceBrightColorsStrength)
     }
-    var extraDimDragging by remember { mutableStateOf(false) }
     var nightLightOn by remember {
         mutableStateOf(colorDisplayManager.isNightDisplayActivated)
     }
@@ -117,10 +116,10 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
                     when (uri?.lastPathSegment) {
                         Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED ->
                             extraDimOn = colorDisplayManager.isReduceBrightColorsActivated
-                        Settings.Secure.REDUCE_BRIGHT_COLORS_LEVEL ->
-                            if (!extraDimDragging) {
-                                extraDimLevel = colorDisplayManager.reduceBrightColorsStrength
-                            }
+                        // The intensity level is intentionally not mirrored back:
+                        // the read-back races the slider's own recomposition and
+                        // makes the thumb and track visibly drift after each
+                        // commit. The slider owns its value while QS is open.
                         Settings.Secure.NIGHT_DISPLAY_ACTIVATED ->
                             nightLightOn = colorDisplayManager.isNightDisplayActivated
                         Settings.Secure.NIGHT_DISPLAY_COLOR_TEMPERATURE ->
@@ -163,12 +162,10 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
                 // level on release: writing to ColorDisplayManager on every
                 // frame re-enters via the ContentObserver and makes the slider
                 // fight the user's finger.
-                onDragStart = { extraDimDragging = true },
                 onValueChange = { value ->
                     extraDimLevel = (100 - value * 100f).roundToInt().coerceIn(0, 100)
                 },
                 onValueChangeFinished = {
-                    extraDimDragging = false
                     colorDisplayManager.setReduceBrightColorsStrength(extraDimLevel)
                 },
             )
@@ -201,7 +198,6 @@ private fun ExtraBrightnessSlider(
     value: Float,
     iconRes: Int,
     onDisable: () -> Unit,
-    onDragStart: () -> Unit = {},
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit = {},
 ) {
@@ -211,10 +207,7 @@ private fun ExtraBrightnessSlider(
     ) {
         Slider(
             value = value,
-            onValueChange = {
-                onDragStart()
-                onValueChange(it)
-            },
+            onValueChange = onValueChange,
             onValueChangeFinished = onValueChangeFinished,
             valueRange = 0f..1f,
             modifier =

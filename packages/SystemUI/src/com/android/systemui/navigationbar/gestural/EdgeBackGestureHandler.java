@@ -1203,29 +1203,33 @@ public class EdgeBackGestureHandler {
             final float dx = ev.getX() - mAxEdgeDownX;
             final float dy = ev.getY() - mAxEdgeDownY;
             if (!mAxEdgeActive) {
-                final float slop = Math.max(mTouchSlop * 2f, axDp(12));
-                if (Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)) {
+                // Claim the stream as soon as the finger commits to a direction.
+                // Waiting for the full activation slop leaks every event in between
+                // to the app, which visibly scrolls its content along the swipe.
+                final float claimSlop = Math.max(mTouchSlop / 2f, axDp(6));
+                if (Math.abs(dx) > claimSlop && Math.abs(dx) > Math.abs(dy)) {
                     // Clearly horizontal: let the normal back gesture own this stream.
                     mAxEdgeTracking = false;
                     return false;
                 }
-                if (Math.abs(dy) <= slop || Math.abs(dy) <= Math.abs(dx) * 2.0f) {
+                if (Math.abs(dy) <= claimSlop) {
                     return false;
                 }
+                axPilferEdgeGesture(ev);
                 final float zone = mAxEdgeDownY / mDisplaySize.y;
                 if (dy > 0 && zone < AX_EDGE_PANEL_ZONE_END && mAxEdgePanelAllowed) {
                     mAxEdgeActive = true;
                     mAxEdgeIsVolume = false;
-                    axPilferEdgeGesture(ev);
                 } else if (zone > AX_EDGE_VOLUME_ZONE_START
                         && zone < AX_EDGE_VOLUME_ZONE_END
                         && mAxEdgeVolumeAllowed) {
                     mAxEdgeActive = true;
                     mAxEdgeIsVolume = true;
-                    axPilferEdgeGesture(ev);
                     axShowVolumeBubble(axVolumePercent());
                 } else {
-                    return false;
+                    // Neither panel nor volume: swallow the ambiguous drift so the
+                    // app never sees it.
+                    return true;
                 }
             }
 

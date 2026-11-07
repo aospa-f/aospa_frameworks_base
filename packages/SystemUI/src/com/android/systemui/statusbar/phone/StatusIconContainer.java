@@ -70,7 +70,7 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
     // Individual StatusBarIconViews draw their etc dots centered in this width
     private int mIconDotFrameWidth;
     private boolean mQsExpansionTransitioning;
-    private boolean mShouldRestrictIcons = true;
+    private boolean mShouldRestrictIcons = false;
     // Used to count which states want to be visible during layout
     private ArrayList<StatusIconState> mLayoutStates = new ArrayList<>();
     // So we can count and measure properly
@@ -213,18 +213,11 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
     }
 
     private int getMeasuredWidth(int widthMode, int specWidth, int totalWidth) {
-        if (widthMode == MeasureSpec.EXACTLY) {
-            if (!mNeedsUnderflow && totalWidth > specWidth) {
-                mNeedsUnderflow = true;
-            }
-            return specWidth;
-        } else {
-            if (widthMode == MeasureSpec.AT_MOST && totalWidth > specWidth) {
-                mNeedsUnderflow = true;
-                totalWidth = specWidth;
-            }
-            return totalWidth;
-        }
+        // Lay out every icon: never clamp the container to the available spec, so
+        // system icons are always drawn instead of collapsing into the overflow
+        // dot. Space pressure is absorbed by trailing views (e.g. the network
+        // speed label) instead.
+        return totalWidth;
     }
 
     @Override

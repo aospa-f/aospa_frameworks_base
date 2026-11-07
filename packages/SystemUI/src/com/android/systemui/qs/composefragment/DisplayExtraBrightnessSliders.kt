@@ -65,6 +65,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.android.compose.theme.LocalAndroidColorScheme
 import com.android.systemui.res.R
+import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -83,6 +84,18 @@ private val TRACK_GAP = 6.dp
 private val TRAILING_ICON_SIZE = 40.dp
 private val TRAILING_ICON_GAP = 8.dp
 
+// Direct-settings read of the reduce-bright-colors level (0..100 dim strength).
+private fun readReduceBrightColorsLevel(resolver: android.content.ContentResolver): Int =
+    Settings.Secure.getInt(
+        resolver,
+        Settings.Secure.REDUCE_BRIGHT_COLORS_LEVEL,
+        0,
+    )
+
+// Minimum level delta before a drag is trusted (a grazing mode-switch swipe
+// never reaches this, a deliberate drag or tap does).
+private const val DRAG_VALIDATION_LEVELS = 6
+
 /**
  * Extra dim and Night Light intensity sliders shown directly below the main brightness slider
  * while their respective feature is enabled. The trailing icon sits inside the dark end of the
@@ -99,12 +112,23 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
     var extraDimOn by remember {
         mutableStateOf(colorDisplayManager.isReduceBrightColorsActivated)
     }
+    // Read the level straight from the settings table: the ColorDisplayManager
+    // getter can briefly return the default while the QS panel re-lays-out, and
+    // initializing from it made the slider jump between QS extended and compact
+    // modes.
     var extraDimLevel by remember {
-        mutableIntStateOf(colorDisplayManager.reduceBrightColorsStrength)
+        mutableIntStateOf(readReduceBrightColorsLevel(resolver))
     }
     var nightLightOn by remember {
         mutableStateOf(colorDisplayManager.isNightDisplayActivated)
     }
+    // Track the level we last wrote so the ContentObserver can distinguish
+    // external changes from the echo of our own commit, and guard the thumb
+    // against accidental gesture captures (a mode-switch swipe grazing the
+    // row must not re-dim the screen).
+    var lastCommittedLevel by remember { mutableIntStateOf(extraDimLevel) }
+    var dragStartLevel by remember { mutableIntStateOf(extraDimLevel) }
+    var dragValidated by remember { mutableStateOf(false) }
     var nightTemperature by remember {
         mutableIntStateOf(colorDisplayManager.nightDisplayColorTemperature)
     }
@@ -116,10 +140,16 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
                     when (uri?.lastPathSegment) {
                         Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED ->
                             extraDimOn = colorDisplayManager.isReduceBrightColorsActivated
-                        // The intensity level is intentionally not mirrored back:
-                        // the read-back races the slider's own recomposition and
-                        // makes the thumb and track visibly drift after each
-                        // commit. The slider owns its value while QS is open.
+                        Settings.Secure.REDUCE_BRIGHT_COLORS_LEVEL -> {
+                            val applied = readReduceBrightColorsLevel(resolver)
+                            if (applied != lastCommittedLevel) {
+                                // Someone else changed the level; follow it.
+                                extraDimLevel = applied
+                                lastCommittedLevel = applied
+                                dragStartLevel = applied
+                                dragValidated = false
+                            }
+                        }
                         Settings.Secure.NIGHT_DISPLAY_ACTIVATED ->
                             nightLightOn = colorDisplayManager.isNightDisplayActivated
                         Settings.Secure.NIGHT_DISPLAY_COLOR_TEMPERATURE ->
@@ -163,10 +193,23 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
                 // frame re-enters via the ContentObserver and makes the slider
                 // fight the user's finger.
                 onValueChange = { value ->
-                    extraDimLevel = (100 - value * 100f).roundToInt().coerceIn(0, 100)
+                    val target = (100 - value * 100f).roundToInt().coerceIn(0, 100)
+                    if (!dragValidated) {
+                        if (abs(target - dragStartLevel) >= DRAG_VALIDATION_LEVELS) {
+                            dragValidated = true
+                        }
+                    }
+                    if (dragValidated) {
+                        extraDimLevel = target
+                    }
                 },
                 onValueChangeFinished = {
-                    colorDisplayManager.setReduceBrightColorsStrength(extraDimLevel)
+                    if (dragValidated) {
+                        lastCommittedLevel = extraDimLevel
+                        colorDisplayManager.setReduceBrightColorsStrength(extraDimLevel)
+                    }
+                    dragValidated = false
+                    dragStartLevel = extraDimLevel
                 },
             )
         }

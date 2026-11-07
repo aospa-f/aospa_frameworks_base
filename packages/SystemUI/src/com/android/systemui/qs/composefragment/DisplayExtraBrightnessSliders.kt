@@ -153,11 +153,11 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
         if (extraDimOn) {
             ExtraBrightnessSlider(
                 label = stringResource(R.string.extra_dim_brightness_label),
-                value = extraDimLevel / 100f,
+                value = (100 - extraDimLevel) / 100f,
                 iconRes = R.drawable.ic_qs_extra_dim,
                 onDisable = { colorDisplayManager.setReduceBrightColorsActivated(false) },
                 onValueChange = { value ->
-                    val level = (value * 100f).roundToInt().coerceIn(0, 100)
+                    val level = (100 - value * 100f).roundToInt().coerceIn(0, 100)
                     extraDimLevel = level
                     colorDisplayManager.setReduceBrightColorsStrength(level)
                 },

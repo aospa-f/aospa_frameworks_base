@@ -86,7 +86,7 @@ class BurnInProtectionController @Inject constructor(
         Settings.Secure.getIntForUser(
             context.contentResolver,
             Settings.Secure.STATUS_BAR_BURN_IN_PROTECTION,
-            1,
+             0,
             UserHandle.USER_CURRENT
         ) != 0
 

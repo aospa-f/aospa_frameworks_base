@@ -360,29 +360,9 @@ private class CellularIconViewModel(
             .stateIn(scope, SharingStarted.WhileSubscribed(), false)
 
 
-    override val volteId =
-        combine (
-                iconInteractor.imsInfo,
-                iconInteractor.showVolteIcon,
-                iconInteractor.isInService,
-        ) { imsInfo, showVolteIcon, isInService ->
-             if (!showVolteIcon) {
-                return@combine 0
-            }
-            val voiceNetworkType = imsInfo.voiceNetworkType
-            val netWorkType = imsInfo.originNetworkType
-            if ((imsInfo.voiceCapable || imsInfo.videoCapable) && imsInfo.imsRegistered) {
-                return@combine R.drawable.ic_volte
-            } else if ((netWorkType == TelephonyManager.NETWORK_TYPE_LTE
-                        || netWorkType == TelephonyManager.NETWORK_TYPE_LTE_CA)
-                && isInService
-                && voiceNetworkType  == TelephonyManager.NETWORK_TYPE_UNKNOWN) {
-                return@combine R.drawable.ic_volte_no_voice
-            } else {
-                return@combine 0
-            }
-        }
-        .distinctUntilChanged()
+    // Force-hide the HD (VoLTE) badge; the carrier toggles it back on regardless
+    // of the user-facing HD-calling preference.
+    override val volteId: Flow<Int> = flowOf(0)
         .stateIn(scope, SharingStarted.WhileSubscribed(), 0)
 
     override val showSignalStrengthIcon =

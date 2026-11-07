@@ -139,7 +139,7 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         resetViewStates();
         calculateIconTranslations();
         applyIconStates();
-        NetworkTraffic.setIconsCrowded(mLayoutStates.size() + 1 > MAX_ICONS_FOR_TRAFFIC);
+        NetworkTraffic.setIconsCrowded(mLayoutStates.size() > MAX_ICONS_FOR_TRAFFIC);
     }
 
     @Override
@@ -308,25 +308,11 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         }
     }
 
-    /** Full-bleed indicator glyphs; pairs of them get a tighter visual gap. */
-    private static boolean isCompactClusterIcon(View child) {
-        if (!(child instanceof StatusBarIconView)) {
-            return false;
-        }
-        final String slot = ((StatusBarIconView) child).getSlot();
-        return "alarm_clock".equals(slot) || "volume".equals(slot)
-                || "zen".equals(slot) || "mute".equals(slot);
-    }
-
-    private float gapBetween(View right, View left) {
-        if (isCompactClusterIcon(right) && isCompactClusterIcon(left)) {
-            return mIconSpacing * 0.35f;
-        }
-        return mIconSpacing;
-    }
-
     /**
-     * Layout is happening from end -> start
+     * Calculates the X translation for each icon view.
+     *
+     * <p>This is done by iterating through the children from right to left, giving each icon view a
+     * position, and then deciding if it should be shown as an icon, a dot, or hidden.
      */
     private void calculateIconTranslations() {
         mLayoutStates.clear();
@@ -339,7 +325,6 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
                 + " width=" + width + " underflow=" + mNeedsUnderflow);
 
         // Collect all of the states which want to be visible
-        View lastPlaced = null;
         for (int i = childCount - 1; i >= 0; i--) {
             View child = getChildAt(i);
             StatusIconDisplayable iconView = (StatusIconDisplayable) child;
@@ -355,13 +340,17 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
             // Move translationX to the spot within StatusIconContainer's layout to add the view
             // without cutting off the child view.
             translationX -= getViewTotalWidth(child);
-            if (lastPlaced != null) {
-                translationX -= gapBetween(lastPlaced, child);
+            if (child instanceof StatusBarIconView
+                    && "battery".equals(((StatusBarIconView) child).getSlot())) {
+                // Keep a clear gap between the network icons and the battery.
+                translationX -= mIconSpacing;
             }
             childState.visibleState = STATE_ICON;
             childState.setXTranslation(translationX);
             mLayoutStates.add(0, childState);
-            lastPlaced = child;
+
+            // Shift translationX over by mIconSpacing for the next view.
+            translationX -= mIconSpacing;
         }
 
         // Show either 1-MAX_ICONS icons, or (MAX_ICONS - 1) icons + overflow

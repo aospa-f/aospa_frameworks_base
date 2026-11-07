@@ -16,6 +16,7 @@
 
 package com.android.systemui.gamespace;
 
+import android.animation.ValueAnimator;
 import android.app.ActivityManager;
 import android.app.ActivityTaskManager;
 import android.app.NotificationManager;
@@ -43,8 +44,9 @@ import java.util.Set;
 
 /**
  * GameSpace: while a selected game is in the foreground this keeps the status bar and edge
- * gestures locked and, optionally, turns on Do Not Disturb. A small floating handle on the
- * left edge of the screen toggles the lock.
+ * gestures locked and, optionally, turns on Do Not Disturb. A floating circle on the left
+ * edge sits half-hidden by default; the first tap slides it out, further taps toggle the
+ * lock, and it tucks back away when idle.
  */
 public final class GameSpaceController {
     private static final String TAG = "GameSpace";
@@ -52,7 +54,17 @@ public final class GameSpaceController {
     private static final String KEY_LOCK = "ax_gamespace_lock";
     private static final String KEY_DND = "ax_gamespace_dnd";
     private static final String KEY_GESTURE_LOCK = "ax_gaming_gesture_lock";
-    private static final int FADE_DELAY_MS = 4000;
+
+    /** Idle time after which the circle tucks back into the edge. */
+    private static final int REVEAL_IDLE_MS = 4000;
+    /** Circle diameter. */
+    private static final int CIRCLE_DP = 48;
+    /** X offset that leaves half of the circle peeking out of the left edge. */
+    private static final int SEMI_X_DP = -24;
+    /** X offset with the circle fully on screen. */
+    private static final int REVEAL_X_DP = 4;
+    /** Vertical placement: considerably above the middle of the left edge. */
+    private static final float VERTICAL_FRACTION = 0.32f;
 
     private static GameSpaceController sInstance;
     private static volatile boolean sLocked;
@@ -76,6 +88,7 @@ public final class GameSpaceController {
 
     private View mHandle;
     private boolean mLocked;
+    private boolean mRevealed;
     private String mGame;
     private int mSavedInterruptionFilter = -1;
     private String mForegroundPackage;
@@ -85,11 +98,7 @@ public final class GameSpaceController {
     private boolean mLockEnabled;
     private boolean mDndEnabled;
 
-    private final Runnable mFade = () -> {
-        if (mHandle != null) {
-            mHandle.animate().alpha(0.15f).setDuration(300).start();
-        }
-    };
+    private final Runnable mCollapse = () -> reveal(false);
 
     private final ContentObserver mSettingsObserver = new ContentObserver(mHandler) {
         @Override
@@ -114,35 +123,32 @@ public final class GameSpaceController {
                 public void onTaskMovedToFront(ActivityManager.RunningTaskInfo task) {
                     final String pkg = task.topActivity == null
                             ? null : task.topActivity.getPackageName();
-                    final int taskId = task.taskId;
-                    mHandler.post(() -> evaluate(taskId, pkg));
+                    evaluate(task.taskId, pkg);
                 }
             });
         } catch (RemoteException ignored) {
             // Task manager unavailable; the feature stays dormant.
         }
+
         registerObserver(KEY_APPS);
         registerObserver(KEY_LOCK);
         registerObserver(KEY_DND);
         reloadSettings();
 
         // Pick up a game that was already in the foreground before SystemUI (re)started.
-        mHandler.post(() -> {
-            try {
-                final List<ActivityManager.RunningTaskInfo> tasks =
-                        ActivityTaskManager.getService().getTasks(
-                                1, false, false, mContext.getDisplayId());
-                if (tasks.isEmpty()) {
-                    return;
-                }
-                final ActivityManager.RunningTaskInfo task = tasks.get(0);
-                final String pkg = task.topActivity == null
-                        ? null : task.topActivity.getPackageName();
-                evaluate(task.taskId, pkg);
-            } catch (RemoteException | SecurityException ignored) {
-                // Task manager unavailable.
+        try {
+            final List<ActivityManager.RunningTaskInfo> tasks =
+                    ActivityTaskManager.getService().getTasks(
+                            1, false, false, mContext.getDisplayId());
+            if (tasks.isEmpty()) {
+                return;
             }
-        });
+            final ActivityManager.RunningTaskInfo task = tasks.get(0);
+            final String pkg = task.topActivity == null
+                    ? null : task.topActivity.getPackageName();
+            evaluate(task.taskId, pkg);
+        } catch (RemoteException | SecurityException ignored) {
+        }
     }
 
     private void registerObserver(String key) {
@@ -286,24 +292,34 @@ public final class GameSpaceController {
         if (mHandle != null) {
             return;
         }
+        final int size = dp(CIRCLE_DP);
         final View handle = new View(mContext);
         handle.setOnClickListener(v -> {
+            mHandler.removeCallbacks(mCollapse);
+            if (!mRevealed) {
+                // First tap: slide the circle out. The lock state is untouched.
+                reveal(true);
+                mHandler.postDelayed(mCollapse, REVEAL_IDLE_MS);
+                return;
+            }
+            // Once revealed, further taps toggle the lock: one tap disables it,
+            // the next one re-enables it.
             if (mGame != null) {
                 setLocked(!mLocked);
             }
-            mHandler.removeCallbacks(mFade);
-            handle.animate().alpha(1f).setDuration(150).start();
-            mHandler.postDelayed(mFade, FADE_DELAY_MS);
+            mHandler.postDelayed(mCollapse, REVEAL_IDLE_MS);
         });
         final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                dp(16), dp(72),
+                size, size,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                         | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT);
-        params.gravity = Gravity.LEFT | Gravity.CENTER_VERTICAL;
-        params.x = 0;
+        params.gravity = Gravity.TOP | Gravity.LEFT;
+        params.x = dp(SEMI_X_DP);
+        params.y = (int) (mContext.getResources().getDisplayMetrics().heightPixels
+                * VERTICAL_FRACTION);
         params.setTitle("GameSpace");
         try {
             mWindowManager.addView(handle, params);
@@ -318,14 +334,14 @@ public final class GameSpaceController {
             }
         }
         mHandle = handle;
+        mRevealed = false;
         updateHandle();
+        handle.setAlpha(0f);
         handle.animate().alpha(1f).setDuration(150).start();
-        mHandler.removeCallbacks(mFade);
-        mHandler.postDelayed(mFade, FADE_DELAY_MS);
     }
 
     private void hideHandle() {
-        mHandler.removeCallbacks(mFade);
+        mHandler.removeCallbacks(mCollapse);
         if (mHandle != null) {
             try {
                 mWindowManager.removeView(mHandle);
@@ -334,6 +350,30 @@ public final class GameSpaceController {
             }
             mHandle = null;
         }
+        mRevealed = false;
+    }
+
+    /** Slides the circle between the half-hidden and fully visible positions. */
+    private void reveal(boolean revealed) {
+        if (mHandle == null || mRevealed == revealed) {
+            return;
+        }
+        mRevealed = revealed;
+        final WindowManager.LayoutParams params =
+                (WindowManager.LayoutParams) mHandle.getLayoutParams();
+        final int start = params.x;
+        final int end = dp(revealed ? REVEAL_X_DP : SEMI_X_DP);
+        final ValueAnimator animator = ValueAnimator.ofInt(start, end);
+        animator.setDuration(150);
+        animator.addUpdateListener(animation -> {
+            params.x = (int) animation.getAnimatedValue();
+            try {
+                mWindowManager.updateViewLayout(mHandle, params);
+            } catch (Exception ignored) {
+                // The window may be gone mid-animation.
+            }
+        });
+        animator.start();
     }
 
     private void updateHandle() {
@@ -341,8 +381,9 @@ public final class GameSpaceController {
             return;
         }
         final GradientDrawable background = new GradientDrawable();
-        background.setCornerRadius(dp(8));
-        background.setColor(mLocked ? 0xFFFFFFFF : 0xFFBDBDBD);
+        background.setShape(GradientDrawable.OVAL);
+        background.setColor(mLocked ? 0xF2FFFFFF : 0xFF66BB6A);
+        background.setStroke(dp(1), 0x40000000);
         mHandle.setBackground(background);
     }
 

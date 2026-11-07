@@ -39,8 +39,6 @@ import com.android.systemui.statusbar.notification.stack.AnimationFilter;
 import com.android.systemui.statusbar.notification.stack.AnimationProperties;
 import com.android.systemui.statusbar.notification.stack.ViewState;
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController;
-import com.android.systemui.statusbar.policy.networkspeed.NetworkSpeedController;
-import com.android.systemui.statusbar.policy.networkspeed.NetworkSpeedView;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -183,9 +181,6 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         for (int i = 0; i < visibleCount; i++) {
             // Walking backwards
             View child = mMeasureViews.get(visibleCount - i - 1);
-            if (child instanceof NetworkSpeedView) {
-                ((NetworkSpeedView) child).clearShrink();
-            }
             measureChild(child, childWidthSpec, heightMeasureSpec);
             int spacing = i == visibleCount - 1 ? 0 : mIconSpacing;
             if (mShouldRestrictIcons) {
@@ -200,35 +195,9 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
                 totalWidth += getViewTotalMeasuredWidth(child) + spacing;
             }
         }
-        // When space is tight, let the network speed text yield first: the icons and
-        // the battery keep their slots and nothing is ever pushed off screen.
-        if (widthMode != View.MeasureSpec.UNSPECIFIED && totalWidth > specWidth) {
-            totalWidth = shrinkSpeedTextToFit(specWidth, totalWidth, heightMeasureSpec);
-        }
         setMeasuredDimension(
                 getMeasuredWidth(widthMode, specWidth, totalWidth),
                 getMeasuredHeight(heightMeasureSpec, mMeasureViews));
-    }
-
-    private int shrinkSpeedTextToFit(int specWidth, int totalWidth, int heightMeasureSpec) {
-        for (int i = 0; i < mMeasureViews.size(); i++) {
-            View child = mMeasureViews.get(i);
-            if (!(child instanceof NetworkSpeedView)) {
-                continue;
-            }
-            final int childWidth = getViewTotalMeasuredWidth(child);
-            final int overflow = totalWidth - specWidth;
-            if (childWidth <= overflow) {
-                // Cannot shrink enough; fall back to overflowing past the start edge.
-                return totalWidth;
-            }
-            final int target = childWidth - overflow;
-            ((NetworkSpeedView) child).setShrunkWidth(target);
-            child.measure(
-                    MeasureSpec.makeMeasureSpec(target, MeasureSpec.EXACTLY), heightMeasureSpec);
-            return totalWidth - childWidth + target;
-        }
-        return totalWidth;
     }
 
     private int getMeasuredHeight(int heightMeasureSpec, List<View> measuredChildren) {
@@ -249,12 +218,6 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         // dot. Space pressure is absorbed by trailing views (e.g. the network
         // speed label) instead.
         return totalWidth;
-    }
-
-    @Override
-    protected void onAttachedToWindow() {
-        super.onAttachedToWindow();
-        NetworkSpeedController.onContainerAttached(this);
     }
 
     @Override

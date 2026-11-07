@@ -58,13 +58,13 @@ public final class GameSpaceController {
     /** Idle time after which the circle tucks back into the edge. */
     private static final int REVEAL_IDLE_MS = 4000;
     /** Circle diameter. */
-    private static final int CIRCLE_DP = 48;
+    private static final int CIRCLE_DP = 40;
     /** X offset that leaves half of the circle peeking out of the left edge. */
-    private static final int SEMI_X_DP = -24;
+    private static final int SEMI_X_DP = -20;
     /** X offset with the circle fully on screen. */
     private static final int REVEAL_X_DP = 4;
     /** Vertical placement: considerably above the middle of the left edge. */
-    private static final float VERTICAL_FRACTION = 0.32f;
+    private static final float VERTICAL_FRACTION = 0.25f;
 
     private static GameSpaceController sInstance;
     private static volatile boolean sLocked;
@@ -123,7 +123,16 @@ public final class GameSpaceController {
                 public void onTaskMovedToFront(ActivityManager.RunningTaskInfo task) {
                     final String pkg = task.topActivity == null
                             ? null : task.topActivity.getPackageName();
-                    evaluate(task.taskId, pkg);
+                    // All window work happens on the main handler thread.
+                    mHandler.post(() -> evaluate(task.taskId, pkg));
+                }
+
+                @Override
+                public void onTaskStackChanged() {
+                    // Covers top-task changes that never produce a move-to-front
+                    // event, e.g. an in-game overlay task closing and revealing
+                    // the game underneath.
+                    mHandler.post(() -> refreshTopTask());
                 }
             });
         } catch (RemoteException ignored) {
@@ -136,19 +145,7 @@ public final class GameSpaceController {
         reloadSettings();
 
         // Pick up a game that was already in the foreground before SystemUI (re)started.
-        try {
-            final List<ActivityManager.RunningTaskInfo> tasks =
-                    ActivityTaskManager.getService().getTasks(
-                            1, false, false, mContext.getDisplayId());
-            if (tasks.isEmpty()) {
-                return;
-            }
-            final ActivityManager.RunningTaskInfo task = tasks.get(0);
-            final String pkg = task.topActivity == null
-                    ? null : task.topActivity.getPackageName();
-            evaluate(task.taskId, pkg);
-        } catch (RemoteException | SecurityException ignored) {
-        }
+        refreshTopTask();
     }
 
     private void registerObserver(String key) {
@@ -178,6 +175,23 @@ public final class GameSpaceController {
         } else {
             exitGame();
             enterGame(taskId, pkg);
+        }
+    }
+
+    /** Re-evaluates against the current top task. */
+    private void refreshTopTask() {
+        try {
+            final List<ActivityManager.RunningTaskInfo> tasks =
+                    ActivityTaskManager.getService().getTasks(
+                            1, false, false, mContext.getDisplayId());
+            if (tasks.isEmpty()) {
+                return;
+            }
+            final ActivityManager.RunningTaskInfo task = tasks.get(0);
+            final String pkg = task.topActivity == null
+                    ? null : task.topActivity.getPackageName();
+            evaluate(task.taskId, pkg);
+        } catch (RemoteException | SecurityException ignored) {
         }
     }
 
@@ -289,6 +303,11 @@ public final class GameSpaceController {
     }
 
     private void showHandle() {
+        if (mHandle != null && !mHandle.isAttachedToWindow()) {
+            // The window was dropped behind our back (e.g. removed by the
+            // system); clear the stale reference so it can be re-added.
+            mHandle = null;
+        }
         if (mHandle != null) {
             return;
         }

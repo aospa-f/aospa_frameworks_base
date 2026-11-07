@@ -139,7 +139,7 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         resetViewStates();
         calculateIconTranslations();
         applyIconStates();
-        NetworkTraffic.setIconsCrowded(mLayoutStates.size() > MAX_ICONS_FOR_TRAFFIC);
+        NetworkTraffic.setIconsCrowded(mLayoutStates.size() + 1 > MAX_ICONS_FOR_TRAFFIC);
     }
 
     @Override

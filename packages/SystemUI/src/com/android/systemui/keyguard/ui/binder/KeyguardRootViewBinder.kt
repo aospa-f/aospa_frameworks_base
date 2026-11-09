@@ -18,6 +18,8 @@ package com.android.systemui.keyguard.ui.binder
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.os.UserHandle
+import android.provider.Settings
 import android.annotation.SuppressLint
 import android.graphics.Point
 import android.graphics.Rect
@@ -138,6 +140,16 @@ object KeyguardRootViewBinder {
                     if (deviceEntryHapticsInteractor != null && vibratorHelper != null) {
                         launch {
                             deviceEntryHapticsInteractor.playSuccessHapticOnDeviceEntry.collect {
+                                val vibrateOnUnlock =
+                                    Settings.System.getIntForUser(
+                                        view.context.contentResolver,
+                                        Settings.System.VIBRATE_ON_SCREEN_UNLOCK,
+                                        1,
+                                        UserHandle.USER_CURRENT,
+                                    ) != 0
+                                if (!vibrateOnUnlock) {
+                                    return@collect
+                                }
                                 if (msdlFeedback()) {
                                     msdlPlayer?.playToken(
                                         MSDLToken.UNLOCK,

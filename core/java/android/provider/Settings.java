@@ -5664,6 +5664,14 @@ public final class Settings {
         public static final String VIBRATE_ON = "vibrate_on";
 
         /**
+         * Whether to vibrate when successfully unlocking the screen.
+         * 0 = off, 1 = on
+         * @hide
+         */
+        @Readable
+        public static final String VIBRATE_ON_SCREEN_UNLOCK = "vibrate_on_screen_unlock";
+
+        /**
          * Whether applying ramping ringer on incoming phone call ringtone.
          * <p>1 = apply ramping ringer
          * <p>0 = do not apply ramping ringer

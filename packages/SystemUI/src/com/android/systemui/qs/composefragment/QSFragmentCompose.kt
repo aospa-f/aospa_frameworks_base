@@ -1505,7 +1505,7 @@ fun QuickQuickSettingsLayout(
         if (mediaInRow) {
             Row(
                 horizontalArrangement = spacedBy(QuickSettingsShade.Dimensions.HorizontalPadding),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
             ) {
                 Box(modifier = Modifier.weight(1f)) {
                     if (showSlider == 2 && !sliderAtTop) {
@@ -1552,7 +1552,7 @@ fun QuickSettingsLayout(
         if (mediaInRow) {
             Row(
                 horizontalArrangement = spacedBy(QuickSettingsShade.Dimensions.HorizontalPadding),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
             ) {
                 Box(modifier = Modifier.weight(1f)) { tiles(brightnessAfterTiles) }
                 Box(modifier = Modifier.weight(1f)) { media() }

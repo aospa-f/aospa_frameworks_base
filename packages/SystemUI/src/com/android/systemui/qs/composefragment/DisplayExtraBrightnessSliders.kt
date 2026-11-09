@@ -17,6 +17,8 @@
 package com.android.systemui.qs.composefragment
 
 import android.content.Context
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import android.database.ContentObserver
 import android.hardware.display.ColorDisplayManager
 import android.net.Uri
@@ -178,65 +180,86 @@ fun DisplayExtraBrightnessSliders(modifier: Modifier = Modifier) {
         return
     }
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        if (extraDimOn) {
-            ExtraBrightnessSlider(
-                label = stringResource(R.string.extra_dim_brightness_label),
-                value = (100 - extraDimLevel) / 100f,
-                iconRes = R.drawable.ic_qs_extra_dim,
-                onDisable = { colorDisplayManager.setReduceBrightColorsActivated(false) },
-                // Track the thumb locally while dragging and only commit the
-                // level on release: writing to ColorDisplayManager on every
-                // frame re-enters via the ContentObserver and makes the slider
-                // fight the user's finger.
-                onValueChange = { value ->
-                    val target = (100 - value * 100f).roundToInt().coerceIn(0, 100)
-                    if (!dragValidated) {
-                        if (abs(target - dragStartLevel) >= DRAG_VALIDATION_LEVELS) {
-                            dragValidated = true
-                        }
+    val isLandscape =
+        LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    val extraDimSlider: @Composable (Modifier) -> Unit = { sliderModifier ->
+        ExtraBrightnessSlider(
+            modifier = sliderModifier,
+            label = stringResource(R.string.extra_dim_brightness_label),
+            value = (100 - extraDimLevel) / 100f,
+            iconRes = R.drawable.ic_qs_extra_dim,
+            onDisable = { colorDisplayManager.setReduceBrightColorsActivated(false) },
+            onValueChange = { value ->
+                val target = (100 - value * 100f).roundToInt().coerceIn(0, 100)
+                if (!dragValidated) {
+                    if (abs(target - dragStartLevel) >= DRAG_VALIDATION_LEVELS) {
+                        dragValidated = true
                     }
-                    if (dragValidated) {
-                        extraDimLevel = target
-                    }
-                },
-                onValueChangeFinished = {
-                    if (dragValidated) {
-                        lastCommittedLevel = extraDimLevel
-                        colorDisplayManager.setReduceBrightColorsStrength(extraDimLevel)
-                    }
-                    dragValidated = false
-                    dragStartLevel = extraDimLevel
-                },
-            )
+                }
+                if (dragValidated) {
+                    extraDimLevel = target
+                }
+            },
+            onValueChangeFinished = {
+                if (dragValidated) {
+                    lastCommittedLevel = extraDimLevel
+                    colorDisplayManager.setReduceBrightColorsStrength(extraDimLevel)
+                }
+                dragValidated = false
+                dragStartLevel = extraDimLevel
+            },
+        )
+    }
+
+    val nightLightSlider: @Composable (Modifier) -> Unit = { sliderModifier ->
+        ExtraBrightnessSlider(
+            modifier = sliderModifier,
+            label = stringResource(R.string.quick_settings_night_display_label),
+            value =
+                ((NIGHT_TEMP_MAX - nightTemperature).toFloat() /
+                        (NIGHT_TEMP_MAX - NIGHT_TEMP_MIN))
+                    .coerceIn(0f, 1f),
+            iconRes = R.drawable.ic_qs_night_light,
+            onDisable = { colorDisplayManager.setNightDisplayActivated(false) },
+            onValueChange = { value ->
+                val temperature =
+                    (NIGHT_TEMP_MAX - value * (NIGHT_TEMP_MAX - NIGHT_TEMP_MIN))
+                        .roundToInt()
+                        .coerceIn(NIGHT_TEMP_MIN, NIGHT_TEMP_MAX)
+                nightTemperature = temperature
+                colorDisplayManager.setNightDisplayColorTemperature(temperature)
+            },
+        )
+    }
+
+    if (isLandscape && extraDimOn && nightLightOn) {
+        Row(
+            modifier = modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            extraDimSlider(Modifier.weight(1f))
+            nightLightSlider(Modifier.weight(1f))
         }
-        if (nightLightOn) {
-            ExtraBrightnessSlider(
-                label = stringResource(R.string.quick_settings_night_display_label),
-                value =
-                    ((NIGHT_TEMP_MAX - nightTemperature).toFloat() /
-                            (NIGHT_TEMP_MAX - NIGHT_TEMP_MIN))
-                        .coerceIn(0f, 1f),
-                iconRes = R.drawable.ic_qs_night_light,
-                onDisable = { colorDisplayManager.setNightDisplayActivated(false) },
-                onValueChange = { value ->
-                    val temperature =
-                        (NIGHT_TEMP_MAX - value * (NIGHT_TEMP_MAX - NIGHT_TEMP_MIN))
-                            .roundToInt()
-                            .coerceIn(NIGHT_TEMP_MIN, NIGHT_TEMP_MAX)
-                    nightTemperature = temperature
-                    colorDisplayManager.setNightDisplayColorTemperature(temperature)
-                },
-            )
+    } else {
+        Column(
+            modifier = modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (extraDimOn) {
+                extraDimSlider(Modifier.fillMaxWidth())
+            }
+            if (nightLightOn) {
+                nightLightSlider(Modifier.fillMaxWidth())
+            }
         }
     }
 }
 
 @Composable
 private fun ExtraBrightnessSlider(
+    modifier: Modifier = Modifier,
     label: String,
     value: Float,
     iconRes: Int,
@@ -245,7 +268,7 @@ private fun ExtraBrightnessSlider(
     onValueChangeFinished: () -> Unit = {},
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Slider(

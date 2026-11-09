@@ -18,7 +18,11 @@ package com.android.systemui.bouncer.ui.helper
 
 //noinspection CleanArchitectureDependencyViolation: Data layer only referenced for this enum class
 
+import android.content.Context
+import android.os.UserHandle
+import android.provider.Settings
 import com.android.keyguard.AuthInteractionProperties
+import com.android.systemui.dagger.qualifiers.Application
 import com.google.android.msdl.data.model.MSDLToken
 import com.google.android.msdl.domain.MSDLPlayer
 import javax.inject.Inject
@@ -26,9 +30,15 @@ import javax.inject.Inject
 /**
  * A helper class to deliver haptic feedback in bouncer interactions.
  *
+ * @param[context] The application [Context].
  * @param[msdlPlayer] The [MSDLPlayer] used to deliver MSDL feedback.
  */
-class BouncerHapticPlayer @Inject constructor(private val msdlPlayer: dagger.Lazy<MSDLPlayer>) {
+class BouncerHapticPlayer
+@Inject
+constructor(
+    @Application private val context: Context,
+    private val msdlPlayer: dagger.Lazy<MSDLPlayer>,
+) {
 
     private val authInteractionProperties by
         lazy(LazyThreadSafetyMode.NONE) { AuthInteractionProperties() }
@@ -39,6 +49,18 @@ class BouncerHapticPlayer @Inject constructor(private val msdlPlayer: dagger.Laz
      * @param[authenticationSucceeded] Whether the authentication was successful or not.
      */
     fun playAuthenticationFeedback(authenticationSucceeded: Boolean) {
+        if (authenticationSucceeded) {
+            val vibrateOnUnlock =
+                Settings.System.getIntForUser(
+                    context.contentResolver,
+                    Settings.System.VIBRATE_ON_SCREEN_UNLOCK,
+                    1,
+                    UserHandle.USER_CURRENT,
+                ) != 0
+            if (!vibrateOnUnlock) {
+                return
+            }
+        }
         val token =
             if (authenticationSucceeded) {
                 MSDLToken.UNLOCK
